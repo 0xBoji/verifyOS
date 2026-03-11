@@ -1,27 +1,13 @@
+use crate::parsers::macho_scanner::scan_usage_from_app_bundle;
 use crate::parsers::plist_reader::InfoPlist;
 use crate::rules::core::{
     AppStoreRule, ArtifactContext, RuleCategory, RuleError, RuleReport, RuleStatus, Severity,
 };
 
-const USAGE_DESCRIPTION_KEYS: &[&str] = &[
-    "NSCameraUsageDescription",
-    "NSMicrophoneUsageDescription",
-    "NSPhotoLibraryUsageDescription",
-    "NSPhotoLibraryAddUsageDescription",
+const LOCATION_KEYS: &[&str] = &[
     "NSLocationWhenInUseUsageDescription",
     "NSLocationAlwaysAndWhenInUseUsageDescription",
     "NSLocationAlwaysUsageDescription",
-    "NSBluetoothAlwaysUsageDescription",
-    "NSBluetoothPeripheralUsageDescription",
-    "NSFaceIDUsageDescription",
-    "NSCalendarsUsageDescription",
-    "NSRemindersUsageDescription",
-    "NSContactsUsageDescription",
-    "NSSpeechRecognitionUsageDescription",
-    "NSMotionUsageDescription",
-    "NSAppleMusicUsageDescription",
-    "NSHealthShareUsageDescription",
-    "NSHealthUpdateUsageDescription",
 ];
 
 pub struct UsageDescriptionsRule;
@@ -56,11 +42,35 @@ impl AppStoreRule for UsageDescriptionsRule {
             });
         };
 
-        let missing: Vec<&str> = USAGE_DESCRIPTION_KEYS
+        let scan = match scan_usage_from_app_bundle(artifact.app_bundle_path) {
+            Ok(scan) => scan,
+            Err(err) => {
+                return Ok(RuleReport {
+                    status: RuleStatus::Skip,
+                    message: Some(format!("Usage scan skipped: {err}")),
+                    evidence: None,
+                });
+            }
+        };
+
+        if scan.required_keys.is_empty() && !scan.requires_location_key {
+            return Ok(RuleReport {
+                status: RuleStatus::Pass,
+                message: Some("No usage APIs detected".to_string()),
+                evidence: None,
+            });
+        }
+
+        let mut missing: Vec<&str> = scan
+            .required_keys
             .iter()
             .copied()
             .filter(|key| !plist.has_key(key))
             .collect();
+
+        if scan.requires_location_key && !has_any_location_key(plist) {
+            missing.push("NSLocationWhenInUseUsageDescription | NSLocationAlwaysAndWhenInUseUsageDescription | NSLocationAlwaysUsageDescription");
+        }
 
         if missing.is_empty() {
             return Ok(RuleReport {
@@ -72,8 +82,12 @@ impl AppStoreRule for UsageDescriptionsRule {
 
         Ok(RuleReport {
             status: RuleStatus::Fail,
-            message: Some("One or more NS*UsageDescription keys are missing".to_string()),
-            evidence: Some(format!("Missing keys: {}", missing.join(", "))),
+            message: Some("Missing required usage description keys".to_string()),
+            evidence: Some(format!(
+                "Missing keys: {}. Evidence: {}",
+                missing.join(", "),
+                format_evidence(&scan)
+            )),
         })
     }
 }
@@ -110,11 +124,37 @@ impl AppStoreRule for UsageDescriptionsValueRule {
             });
         };
 
-        let empty: Vec<&str> = USAGE_DESCRIPTION_KEYS
+        let scan = match scan_usage_from_app_bundle(artifact.app_bundle_path) {
+            Ok(scan) => scan,
+            Err(err) => {
+                return Ok(RuleReport {
+                    status: RuleStatus::Skip,
+                    message: Some(format!("Usage scan skipped: {err}")),
+                    evidence: None,
+                });
+            }
+        };
+
+        if scan.required_keys.is_empty() && !scan.requires_location_key {
+            return Ok(RuleReport {
+                status: RuleStatus::Pass,
+                message: Some("No usage APIs detected".to_string()),
+                evidence: None,
+            });
+        }
+
+        let mut empty: Vec<&str> = scan
+            .required_keys
             .iter()
             .copied()
             .filter(|key| is_empty_string(plist, key))
             .collect();
+
+        if scan.requires_location_key {
+            if let Some(key) = find_empty_location_key(plist) {
+                empty.push(key);
+            }
+        }
 
         if empty.is_empty() {
             return Ok(RuleReport {
@@ -127,7 +167,11 @@ impl AppStoreRule for UsageDescriptionsValueRule {
         Ok(RuleReport {
             status: RuleStatus::Fail,
             message: Some("Usage description values are empty".to_string()),
-            evidence: Some(format!("Empty keys: {}", empty.join(", "))),
+            evidence: Some(format!(
+                "Empty keys: {}. Evidence: {}",
+                empty.join(", "),
+                format_evidence(&scan)
+            )),
         })
     }
 }
@@ -258,4 +302,23 @@ fn is_empty_array(plist: &InfoPlist, key: &str) -> bool {
         Some(value) => value.as_array().map(|arr| arr.is_empty()).unwrap_or(false),
         None => false,
     }
+}
+
+fn has_any_location_key(plist: &InfoPlist) -> bool {
+    LOCATION_KEYS.iter().any(|key| plist.has_key(key))
+}
+
+fn find_empty_location_key(plist: &InfoPlist) -> Option<&'static str> {
+    for key in LOCATION_KEYS {
+        if plist.has_key(key) && is_empty_string(plist, key) {
+            return Some(*key);
+        }
+    }
+    None
+}
+
+fn format_evidence(scan: &crate::parsers::macho_scanner::UsageScan) -> String {
+    let mut list: Vec<&str> = scan.evidence.iter().copied().collect();
+    list.sort_unstable();
+    list.join(", ")
 }

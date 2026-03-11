@@ -1,4 +1,5 @@
 pub mod macho_parser;
+pub mod macho_scanner;
 pub mod plist_reader;
 pub mod provisioning_profile;
 pub mod zip_extractor;
