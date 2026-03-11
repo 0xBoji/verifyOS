@@ -36,12 +36,11 @@ verifyos-cli path/to/YourApp.ipa
 
 ## Architecture
 
-This project is structured as a Cargo Workspace to keep compilation times low and modularity high:
+This project is structured with modularity in mind:
 
-- **`verifyos-cli`**: Binary crate: CLI frontend, argument parsing, terminal UI
-- **`verifyos-core`**: Core orchestrator and execution engine
-- **`verifyos-parsers`**: Format parsers (`zip` extraction, `plist` mapping, `goblin`/`apple-codesign` Mach-O inspection)
-- **`verifyos-rules`**: Trait-based rule engine representing static checks
+- **`core/`**: Orchestrator and logic execution engine.
+- **`parsers/`**: Format handlers (`zip` extraction, `plist` mapping, `goblin`/`apple-codesign` Mach-O inspection).
+- **`rules/`**: Trait-based rule engine representing the validation checks.
 
 ## Conventional Commits
 
