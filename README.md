@@ -31,7 +31,35 @@ cargo install verifyos-cli
 Run the CLI tool against your `.ipa` or `.app` path:
 
 ```bash
-verifyos-cli path/to/YourApp.ipa
+verifyos-cli --app path/to/YourApp.ipa
+```
+
+### Example Passing Output
+```text
+ Analysis complete!                                                       
+╭──────────────────────────────────┬──────────┬────────────────╮
+│ Rule                             ┆ Severity ┆ Result/Message │
+╞══════════════════════════════════╪══════════╪════════════════╡
+│ Missing Privacy Manifest         ┆ ERROR    ┆ PASS           │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Missing Camera Usage Description ┆ ERROR    ┆ PASS           │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Entitlements Mismatch            ┆ ERROR    ┆ PASS           │
+╰──────────────────────────────────┴──────────┴────────────────╯
+```
+
+### Example Failing Output (Exits with code 1)
+```text
+ Analysis complete!                                                       
+╭──────────────────────────────────┬──────────┬──────────────────────────────────╮
+│ Rule                             ┆ Severity ┆ Result/Message                   │
+╞══════════════════════════════════╪══════════╪══════════════════════════════════╡
+│ Missing Privacy Manifest         ┆ ERROR    ┆ Missing Privacy Manifest         │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Missing Camera Usage Description ┆ ERROR    ┆ Missing Camera Usage Description │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ Entitlements Mismatch            ┆ ERROR    ┆ PASS                             │
+╰──────────────────────────────────┴──────────┴──────────────────────────────────╯
 ```
 
 ## Architecture
@@ -49,8 +77,7 @@ To ensure the automated semantic versioning and changelog parsing through the `r
 *   **`feat:`** A new feature (correlates to a MINOR `v0.X.0` bump).
 *   **`fix:`** A bug fix (correlates to a PATCH `v0.0.X` bump).
 *   **`docs:`** Documentation only changes.
-*   **`style:`** Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc).
-*   **`chore:`** Changes to the build process or auxiliary tools and libraries such as documentation generation.
+*   **`chore:`** Changes to the build process or auxiliary tools.
 
 ## CI and releases
 
