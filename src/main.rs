@@ -12,6 +12,8 @@ use verifyos_cli::rules::info_plist::InfoPlistCapabilitiesRule;
 use verifyos_cli::rules::info_plist::InfoPlistRequiredKeysRule;
 use verifyos_cli::rules::info_plist::UsageDescriptionsRule;
 use verifyos_cli::rules::info_plist::UsageDescriptionsValueRule;
+use verifyos_cli::rules::nested_bundles::NestedBundleDebugEntitlementRule;
+use verifyos_cli::rules::nested_bundles::NestedBundleEntitlementsRule;
 use verifyos_cli::rules::permissions::CameraUsageDescriptionRule;
 use verifyos_cli::rules::privacy::MissingPrivacyManifestRule;
 
@@ -65,6 +67,8 @@ fn main() -> Result<()> {
     engine.register_rule(Box::new(InfoPlistCapabilitiesRule));
     engine.register_rule(Box::new(EntitlementsMismatchRule));
     engine.register_rule(Box::new(EntitlementsProvisioningMismatchRule));
+    engine.register_rule(Box::new(NestedBundleDebugEntitlementRule));
+    engine.register_rule(Box::new(NestedBundleEntitlementsRule));
 
     // 4. Run the Engine
     let results = engine
