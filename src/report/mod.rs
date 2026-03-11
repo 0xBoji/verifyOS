@@ -1,0 +1,205 @@
+use crate::core::engine::EngineResult;
+use crate::rules::core::{RuleCategory, RuleStatus, Severity, RULESET_VERSION};
+use comfy_table::modifiers::UTF8_ROUND_CORNERS;
+use comfy_table::presets::UTF8_FULL;
+use comfy_table::{Cell, Color, Table};
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::time::{SystemTime, UNIX_EPOCH};
+use textwrap::wrap;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReportData {
+    pub ruleset_version: String,
+    pub generated_at_unix: u64,
+    pub results: Vec<ReportItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReportItem {
+    pub rule_id: String,
+    pub rule_name: String,
+    pub category: RuleCategory,
+    pub severity: Severity,
+    pub status: RuleStatus,
+    pub message: Option<String>,
+    pub evidence: Option<String>,
+    pub recommendation: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct BaselineSummary {
+    pub suppressed: usize,
+}
+
+pub fn build_report(results: Vec<EngineResult>) -> ReportData {
+    let generated_at_unix = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let mut items = Vec::new();
+
+    for res in results {
+        let (status, message, evidence) = match res.report {
+            Ok(report) => (report.status, report.message, report.evidence),
+            Err(err) => (
+                RuleStatus::Error,
+                Some(err.to_string()),
+                Some("Rule evaluation error".to_string()),
+            ),
+        };
+
+        items.push(ReportItem {
+            rule_id: res.rule_id.to_string(),
+            rule_name: res.rule_name.to_string(),
+            category: res.category,
+            severity: res.severity,
+            status,
+            message,
+            evidence,
+            recommendation: res.recommendation.to_string(),
+        });
+    }
+
+    ReportData {
+        ruleset_version: RULESET_VERSION.to_string(),
+        generated_at_unix,
+        results: items,
+    }
+}
+
+pub fn apply_baseline(report: &mut ReportData, baseline: &ReportData) -> BaselineSummary {
+    let mut suppressed = 0;
+    let baseline_keys: HashSet<String> = baseline
+        .results
+        .iter()
+        .filter(|r| r.status == RuleStatus::Fail)
+        .map(finding_key)
+        .collect();
+
+    report.results.retain(|r| {
+        if r.status != RuleStatus::Fail {
+            return true;
+        }
+        let key = finding_key(r);
+        let keep = !baseline_keys.contains(&key);
+        if !keep {
+            suppressed += 1;
+        }
+        keep
+    });
+
+    BaselineSummary { suppressed }
+}
+
+fn finding_key(item: &ReportItem) -> String {
+    format!(
+        "{}|{}",
+        item.rule_id,
+        item.evidence.clone().unwrap_or_default()
+    )
+}
+
+pub fn render_table(report: &ReportData) -> String {
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS)
+        .set_header(vec!["Rule", "Category", "Severity", "Status", "Message"]);
+
+    for res in &report.results {
+        let severity_cell = match res.severity {
+            Severity::Error => Cell::new("ERROR").fg(Color::Red),
+            Severity::Warning => Cell::new("WARNING").fg(Color::Yellow),
+            Severity::Info => Cell::new("INFO").fg(Color::Blue),
+        };
+
+        let status_cell = match res.status {
+            RuleStatus::Pass => Cell::new("PASS").fg(Color::Green),
+            RuleStatus::Fail => Cell::new("FAIL").fg(Color::Red),
+            RuleStatus::Error => Cell::new("ERROR").fg(Color::Red),
+            RuleStatus::Skip => Cell::new("SKIP").fg(Color::Yellow),
+        };
+
+        let message = res
+            .message
+            .clone()
+            .unwrap_or_else(|| "PASS".to_string());
+        let wrapped = wrap(&message, 50).join("\n");
+
+        table.add_row(vec![
+            Cell::new(res.rule_name.clone()),
+            Cell::new(format!("{:?}", res.category)),
+            severity_cell,
+            status_cell,
+            Cell::new(wrapped),
+        ]);
+    }
+
+    format!("\n{}", table)
+}
+
+pub fn render_json(report: &ReportData) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(report)
+}
+
+pub fn render_sarif(report: &ReportData) -> Result<String, serde_json::Error> {
+    let mut rules = Vec::new();
+    let mut results = Vec::new();
+
+    for item in &report.results {
+        rules.push(serde_json::json!({
+            "id": item.rule_id,
+            "name": item.rule_name,
+            "shortDescription": { "text": item.rule_name },
+            "fullDescription": { "text": item.message.clone().unwrap_or_default() },
+            "help": { "text": item.recommendation },
+            "properties": {
+                "category": format!("{:?}", item.category),
+                "severity": format!("{:?}", item.severity),
+            }
+        }));
+
+        if item.status == RuleStatus::Fail || item.status == RuleStatus::Error {
+            results.push(serde_json::json!({
+                "ruleId": item.rule_id,
+                "level": sarif_level(item.severity),
+                "message": {
+                    "text": item.message.clone().unwrap_or_else(|| item.rule_name.clone())
+                },
+                "properties": {
+                    "category": format!("{:?}", item.category),
+                    "evidence": item.evidence.clone().unwrap_or_default(),
+                }
+            }));
+        }
+    }
+
+    let sarif = serde_json::json!({
+        "version": "2.1.0",
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "verifyos-cli",
+                        "semanticVersion": report.ruleset_version,
+                        "rules": rules
+                    }
+                },
+                "results": results
+            }
+        ]
+    });
+
+    serde_json::to_string_pretty(&sarif)
+}
+
+fn sarif_level(severity: Severity) -> &'static str {
+    match severity {
+        Severity::Error => "error",
+        Severity::Warning => "warning",
+        Severity::Info => "note",
+    }
+}

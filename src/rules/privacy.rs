@@ -1,4 +1,6 @@
-use crate::rules::core::{AppStoreRule, ArtifactContext, RuleError, RuleResult, Severity};
+use crate::rules::core::{
+    AppStoreRule, ArtifactContext, RuleCategory, RuleError, RuleReport, RuleStatus, Severity,
+};
 
 pub struct MissingPrivacyManifestRule;
 
@@ -11,16 +13,35 @@ impl AppStoreRule for MissingPrivacyManifestRule {
         "Missing Privacy Manifest"
     }
 
+    fn category(&self) -> RuleCategory {
+        RuleCategory::Privacy
+    }
+
     fn severity(&self) -> Severity {
         Severity::Error
     }
 
-    fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleResult, RuleError> {
+    fn recommendation(&self) -> &'static str {
+        "Add a PrivacyInfo.xcprivacy file to the app bundle."
+    }
+
+    fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleReport, RuleError> {
         let manifest_path = artifact.app_bundle_path.join("PrivacyInfo.xcprivacy");
         if !manifest_path.exists() {
-            return Err(RuleError::MissingPrivacyManifest);
+            return Ok(RuleReport {
+                status: RuleStatus::Fail,
+                message: Some("Missing PrivacyInfo.xcprivacy".to_string()),
+                evidence: Some(format!(
+                    "Not found at {}",
+                    manifest_path.display()
+                )),
+            });
         }
 
-        Ok(RuleResult { success: true })
+        Ok(RuleReport {
+            status: RuleStatus::Pass,
+            message: None,
+            evidence: None,
+        })
     }
 }

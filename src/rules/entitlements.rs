@@ -1,5 +1,9 @@
 use crate::parsers::macho_parser::MachOExecutable;
-use crate::rules::core::{AppStoreRule, ArtifactContext, RuleError, RuleResult, Severity};
+use crate::parsers::plist_reader::InfoPlist;
+use crate::parsers::provisioning_profile::ProvisioningProfile;
+use crate::rules::core::{
+    AppStoreRule, ArtifactContext, RuleCategory, RuleError, RuleReport, RuleStatus, Severity,
+};
 
 #[derive(Debug, thiserror::Error, miette::Diagnostic)]
 pub enum EntitlementsError {
@@ -30,14 +34,22 @@ impl AppStoreRule for EntitlementsMismatchRule {
     }
 
     fn name(&self) -> &'static str {
-        "Entitlements Mismatch"
+        "Debug Entitlements Present"
+    }
+
+    fn category(&self) -> RuleCategory {
+        RuleCategory::Entitlements
     }
 
     fn severity(&self) -> Severity {
         Severity::Error
     }
 
-    fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleResult, RuleError> {
+    fn recommendation(&self) -> &'static str {
+        "Remove the get-task-allow entitlement for App Store builds."
+    }
+
+    fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleReport, RuleError> {
         let app_name = artifact
             .app_bundle_path
             .file_name()
@@ -60,11 +72,153 @@ impl AppStoreRule for EntitlementsMismatchRule {
 
                 // For App Store submission, get-task-allow must NOT be true.
                 if let Some(true) = plist.get_bool("get-task-allow") {
-                    return Err(RuleError::Entitlements(EntitlementsError::DebugEntitlement));
+                    return Ok(RuleReport {
+                        status: RuleStatus::Fail,
+                        message: Some("get-task-allow entitlement is true".to_string()),
+                        evidence: Some("Entitlements plist has get-task-allow=true".to_string()),
+                    });
                 }
             }
         }
 
-        Ok(RuleResult { success: true })
+        Ok(RuleReport {
+            status: RuleStatus::Pass,
+            message: None,
+            evidence: None,
+        })
     }
+}
+
+pub struct EntitlementsProvisioningMismatchRule;
+
+impl AppStoreRule for EntitlementsProvisioningMismatchRule {
+    fn id(&self) -> &'static str {
+        "RULE_ENTITLEMENTS_PROVISIONING_MISMATCH"
+    }
+
+    fn name(&self) -> &'static str {
+        "Entitlements vs Provisioning Mismatch"
+    }
+
+    fn category(&self) -> RuleCategory {
+        RuleCategory::Entitlements
+    }
+
+    fn severity(&self) -> Severity {
+        Severity::Error
+    }
+
+    fn recommendation(&self) -> &'static str {
+        "Ensure entitlements in the app match the embedded provisioning profile."
+    }
+
+    fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleReport, RuleError> {
+        let Some(entitlements) = load_entitlements_plist(artifact)? else {
+            return Ok(RuleReport {
+                status: RuleStatus::Skip,
+                message: Some("No entitlements found".to_string()),
+                evidence: None,
+            });
+        };
+
+        let provisioning_path = artifact.app_bundle_path.join("embedded.mobileprovision");
+        if !provisioning_path.exists() {
+            return Ok(RuleReport {
+                status: RuleStatus::Skip,
+                message: Some("embedded.mobileprovision not found".to_string()),
+                evidence: Some(provisioning_path.display().to_string()),
+            });
+        }
+
+        let profile = ProvisioningProfile::from_embedded_file(&provisioning_path)
+            .map_err(RuleError::Provisioning)?;
+        let provisioning_entitlements = profile.entitlements;
+
+        let mut mismatches = Vec::new();
+
+        if let Some(app_aps) = entitlements.get_string("aps-environment") {
+            match provisioning_entitlements.get_string("aps-environment") {
+                Some(prov_aps) if prov_aps != app_aps => mismatches.push(format!(
+                    "aps-environment: app={} profile={}",
+                    app_aps, prov_aps
+                )),
+                None => mismatches.push("aps-environment missing in profile".to_string()),
+                _ => {}
+            }
+        }
+
+        let keychain_diff = diff_string_array(
+            &entitlements,
+            &provisioning_entitlements,
+            "keychain-access-groups",
+        );
+        if !keychain_diff.is_empty() {
+            mismatches.push(format!(
+                "keychain-access-groups missing in profile: {}",
+                keychain_diff.join(", ")
+            ));
+        }
+
+        let icloud_diff = diff_string_array(
+            &entitlements,
+            &provisioning_entitlements,
+            "com.apple.developer.icloud-container-identifiers",
+        );
+        if !icloud_diff.is_empty() {
+            mismatches.push(format!(
+                "iCloud containers missing in profile: {}",
+                icloud_diff.join(", ")
+            ));
+        }
+
+        if mismatches.is_empty() {
+            return Ok(RuleReport {
+                status: RuleStatus::Pass,
+                message: None,
+                evidence: None,
+            });
+        }
+
+        Ok(RuleReport {
+            status: RuleStatus::Fail,
+            message: Some("Provisioning profile mismatch".to_string()),
+            evidence: Some(mismatches.join("; ")),
+        })
+    }
+}
+
+fn load_entitlements_plist(
+    artifact: &ArtifactContext,
+) -> Result<Option<InfoPlist>, RuleError> {
+    let app_name = artifact
+        .app_bundle_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .trim_end_matches(".app");
+
+    let executable_path = artifact.app_bundle_path.join(app_name);
+    if !executable_path.exists() {
+        return Ok(None);
+    }
+
+    let macho = MachOExecutable::from_file(&executable_path).map_err(EntitlementsError::MachO)?;
+    let Some(entitlements_xml) = macho.entitlements else {
+        return Ok(None);
+    };
+
+    let plist = crate::parsers::plist_reader::InfoPlist::from_bytes(entitlements_xml.as_bytes())
+        .map_err(|_| EntitlementsError::ParseFailure)?;
+
+    Ok(Some(plist))
+}
+
+fn diff_string_array(entitlements: &InfoPlist, profile: &InfoPlist, key: &str) -> Vec<String> {
+    let app_values = entitlements.get_array_strings(key).unwrap_or_default();
+    let profile_values = profile.get_array_strings(key).unwrap_or_default();
+
+    app_values
+        .into_iter()
+        .filter(|value| !profile_values.contains(value))
+        .collect()
 }

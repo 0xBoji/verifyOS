@@ -1,4 +1,6 @@
-use crate::rules::core::{AppStoreRule, ArtifactContext, RuleError, RuleResult, Severity};
+use crate::rules::core::{
+    AppStoreRule, ArtifactContext, RuleCategory, RuleError, RuleReport, RuleStatus, Severity,
+};
 
 pub struct CameraUsageDescriptionRule;
 
@@ -11,17 +13,33 @@ impl AppStoreRule for CameraUsageDescriptionRule {
         "Missing Camera Usage Description"
     }
 
+    fn category(&self) -> RuleCategory {
+        RuleCategory::Permissions
+    }
+
     fn severity(&self) -> Severity {
         Severity::Error
     }
 
-    fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleResult, RuleError> {
+    fn recommendation(&self) -> &'static str {
+        "Add NSCameraUsageDescription to Info.plist with a user-facing reason."
+    }
+
+    fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleReport, RuleError> {
         if let Some(plist) = artifact.info_plist {
             if !plist.has_key("NSCameraUsageDescription") {
-                return Err(RuleError::MissingCameraUsageDescription);
+                return Ok(RuleReport {
+                    status: RuleStatus::Fail,
+                    message: Some("Missing NSCameraUsageDescription".to_string()),
+                    evidence: Some("Info.plist has no NSCameraUsageDescription".to_string()),
+                });
             }
         }
 
-        Ok(RuleResult { success: true })
+        Ok(RuleReport {
+            status: RuleStatus::Pass,
+            message: None,
+            evidence: None,
+        })
     }
 }

@@ -30,6 +30,12 @@ impl InfoPlist {
         Ok(Self { root: value })
     }
 
+    pub fn from_dictionary(dict: plist::Dictionary) -> Self {
+        Self {
+            root: Value::Dictionary(dict),
+        }
+    }
+
     pub fn get_string(&self, key: &str) -> Option<&str> {
         self.root
             .as_dictionary()
@@ -49,5 +55,30 @@ impl InfoPlist {
             .as_dictionary()
             .map(|dict| dict.contains_key(key))
             .unwrap_or(false)
+    }
+
+    pub fn get_dictionary(&self, key: &str) -> Option<&plist::Dictionary> {
+        self.root
+            .as_dictionary()
+            .and_then(|dict| dict.get(key))
+            .and_then(|v| v.as_dictionary())
+    }
+
+    pub fn get_value(&self, key: &str) -> Option<&Value> {
+        self.root
+            .as_dictionary()
+            .and_then(|dict| dict.get(key))
+    }
+
+    pub fn get_array_strings(&self, key: &str) -> Option<Vec<String>> {
+        self.root
+            .as_dictionary()
+            .and_then(|dict| dict.get(key))
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_string().map(|s| s.to_string()))
+                    .collect()
+            })
     }
 }

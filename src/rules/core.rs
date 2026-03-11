@@ -1,36 +1,52 @@
 use miette::Diagnostic;
+use serde::{Deserialize, Serialize};
+
+pub const RULESET_VERSION: &str = "0.1.0";
 
 #[derive(Debug, thiserror::Error, Diagnostic)]
 pub enum RuleError {
-    #[error("Missing Privacy Manifest")]
-    #[diagnostic(
-        code(verifyos::privacy::missing_manifest),
-        help("Apple requires a PrivacyInfo.xcprivacy file for apps. Please include one in your app bundle.")
-    )]
-    MissingPrivacyManifest,
-
-    #[error("Missing Camera Usage Description")]
-    #[diagnostic(
-        code(verifyos::permissions::missing_camera_desc),
-        help("The Info.plist is missing the NSCameraUsageDescription key.")
-    )]
-    MissingCameraUsageDescription,
-
     #[error(transparent)]
     #[diagnostic(transparent)]
     Entitlements(#[from] crate::rules::entitlements::EntitlementsError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Provisioning(#[from] crate::parsers::provisioning_profile::ProvisioningError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Severity {
     Error,
     Warning,
     Info,
 }
 
-#[derive(Debug)]
-pub struct RuleResult {
-    pub success: bool,
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RuleStatus {
+    Pass,
+    Fail,
+    Error,
+    Skip,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RuleReport {
+    pub status: RuleStatus,
+    pub message: Option<String>,
+    pub evidence: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum RuleCategory {
+    Privacy,
+    Signing,
+    Bundling,
+    Entitlements,
+    Ats,
+    ThirdParty,
+    Permissions,
+    Metadata,
+    Other,
 }
 
 // Stub for now. Will hold the path to the app and the parsed Info.plist
@@ -42,6 +58,8 @@ pub struct ArtifactContext<'a> {
 pub trait AppStoreRule {
     fn id(&self) -> &'static str;
     fn name(&self) -> &'static str;
+    fn category(&self) -> RuleCategory;
     fn severity(&self) -> Severity;
-    fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleResult, RuleError>;
+    fn recommendation(&self) -> &'static str;
+    fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleReport, RuleError>;
 }

@@ -1,6 +1,6 @@
 use crate::parsers::plist_reader::{InfoPlist, PlistError};
 use crate::parsers::zip_extractor::{extract_ipa, ExtractionError};
-use crate::rules::core::{AppStoreRule, ArtifactContext, RuleError, RuleResult, Severity};
+use crate::rules::core::{AppStoreRule, ArtifactContext, RuleError, RuleReport, Severity, RuleCategory};
 use std::path::Path;
 
 #[derive(Debug, thiserror::Error)]
@@ -16,8 +16,10 @@ pub enum OrchestratorError {
 pub struct EngineResult {
     pub rule_id: &'static str,
     pub rule_name: &'static str,
+    pub category: RuleCategory,
     pub severity: Severity,
-    pub result: Result<RuleResult, RuleError>,
+    pub recommendation: &'static str,
+    pub report: Result<RuleReport, RuleError>,
 }
 
 pub struct Engine {
@@ -60,8 +62,10 @@ impl Engine {
             results.push(EngineResult {
                 rule_id: rule.id(),
                 rule_name: rule.name(),
+                category: rule.category(),
                 severity: rule.severity(),
-                result: res,
+                recommendation: rule.recommendation(),
+                report: res,
             });
         }
 
