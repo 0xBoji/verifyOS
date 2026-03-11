@@ -1,6 +1,8 @@
 use crate::parsers::plist_reader::{InfoPlist, PlistError};
 use crate::parsers::zip_extractor::{extract_ipa, ExtractionError};
-use crate::rules::core::{AppStoreRule, ArtifactContext, RuleError, RuleReport, Severity, RuleCategory};
+use crate::rules::core::{
+    AppStoreRule, ArtifactContext, RuleCategory, RuleError, RuleReport, Severity,
+};
 use std::path::Path;
 
 #[derive(Debug, thiserror::Error)]

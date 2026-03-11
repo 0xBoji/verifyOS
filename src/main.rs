@@ -7,11 +7,11 @@ use verifyos_cli::core::engine::Engine;
 use verifyos_cli::report::{apply_baseline, build_report, render_json, render_sarif, render_table};
 use verifyos_cli::rules::core::{RuleStatus, Severity};
 use verifyos_cli::rules::entitlements::EntitlementsMismatchRule;
+use verifyos_cli::rules::entitlements::EntitlementsProvisioningMismatchRule;
+use verifyos_cli::rules::info_plist::InfoPlistCapabilitiesRule;
 use verifyos_cli::rules::info_plist::InfoPlistRequiredKeysRule;
 use verifyos_cli::rules::info_plist::UsageDescriptionsRule;
 use verifyos_cli::rules::info_plist::UsageDescriptionsValueRule;
-use verifyos_cli::rules::info_plist::InfoPlistCapabilitiesRule;
-use verifyos_cli::rules::entitlements::EntitlementsProvisioningMismatchRule;
 use verifyos_cli::rules::permissions::CameraUsageDescriptionRule;
 use verifyos_cli::rules::privacy::MissingPrivacyManifestRule;
 

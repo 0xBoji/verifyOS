@@ -122,10 +122,7 @@ pub fn render_table(report: &ReportData) -> String {
             RuleStatus::Skip => Cell::new("SKIP").fg(Color::Yellow),
         };
 
-        let message = res
-            .message
-            .clone()
-            .unwrap_or_else(|| "PASS".to_string());
+        let message = res.message.clone().unwrap_or_else(|| "PASS".to_string());
         let wrapped = wrap(&message, 50).join("\n");
 
         table.add_row(vec![

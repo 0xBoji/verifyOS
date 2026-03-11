@@ -65,9 +65,7 @@ impl InfoPlist {
     }
 
     pub fn get_value(&self, key: &str) -> Option<&Value> {
-        self.root
-            .as_dictionary()
-            .and_then(|dict| dict.get(key))
+        self.root.as_dictionary().and_then(|dict| dict.get(key))
     }
 
     pub fn get_array_strings(&self, key: &str) -> Option<Vec<String>> {

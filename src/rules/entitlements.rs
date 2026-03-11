@@ -187,9 +187,7 @@ impl AppStoreRule for EntitlementsProvisioningMismatchRule {
     }
 }
 
-fn load_entitlements_plist(
-    artifact: &ArtifactContext,
-) -> Result<Option<InfoPlist>, RuleError> {
+fn load_entitlements_plist(artifact: &ArtifactContext) -> Result<Option<InfoPlist>, RuleError> {
     let app_name = artifact
         .app_bundle_path
         .file_name()

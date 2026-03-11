@@ -255,10 +255,7 @@ fn is_empty_string(plist: &InfoPlist, key: &str) -> bool {
 
 fn is_empty_array(plist: &InfoPlist, key: &str) -> bool {
     match plist.get_value(key) {
-        Some(value) => value
-            .as_array()
-            .map(|arr| arr.is_empty())
-            .unwrap_or(false),
+        Some(value) => value.as_array().map(|arr| arr.is_empty()).unwrap_or(false),
         None => false,
     }
 }

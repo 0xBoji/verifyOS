@@ -31,10 +31,7 @@ impl AppStoreRule for MissingPrivacyManifestRule {
             return Ok(RuleReport {
                 status: RuleStatus::Fail,
                 message: Some("Missing PrivacyInfo.xcprivacy".to_string()),
-                evidence: Some(format!(
-                    "Not found at {}",
-                    manifest_path.display()
-                )),
+                evidence: Some(format!("Not found at {}", manifest_path.display())),
             });
         }
 
