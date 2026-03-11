@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use verifyos_cli::parsers::plist_reader::InfoPlist;
-use verifyos_cli::rules::core::{AppStoreRule, ArtifactContext};
+use verifyos_cli::rules::core::{AppStoreRule, ArtifactContext, RuleStatus};
 use verifyos_cli::rules::permissions::CameraUsageDescriptionRule;
 use verifyos_cli::rules::privacy::MissingPrivacyManifestRule;
 
@@ -20,9 +20,8 @@ fn test_privacy_manifest_rule_passes() {
     };
 
     let rule = MissingPrivacyManifestRule;
-    let result = rule.evaluate(&context);
-    assert!(result.is_ok());
-    assert!(result.unwrap().success);
+    let result = rule.evaluate(&context).expect("Rule should evaluate");
+    assert_eq!(result.status, RuleStatus::Pass);
 }
 
 #[test]
@@ -34,8 +33,8 @@ fn test_privacy_manifest_rule_fails() {
     };
 
     let rule = MissingPrivacyManifestRule;
-    let result = rule.evaluate(&context);
-    assert!(result.is_err());
+    let result = rule.evaluate(&context).expect("Rule should evaluate");
+    assert_eq!(result.status, RuleStatus::Fail);
 }
 
 #[test]
@@ -50,7 +49,6 @@ fn test_camera_usage_rule_passes() {
     };
 
     let rule = CameraUsageDescriptionRule;
-    let result = rule.evaluate(&context);
-    assert!(result.is_ok());
-    assert!(result.unwrap().success);
+    let result = rule.evaluate(&context).expect("Rule should evaluate");
+    assert_eq!(result.status, RuleStatus::Pass);
 }

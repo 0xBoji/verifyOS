@@ -1,7 +1,7 @@
 use crate::parsers::plist_reader::InfoPlist;
 use std::path::Path;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, miette::Diagnostic)]
 pub enum ProvisioningError {
     #[error("Failed to read provisioning profile: {0}")]
     Io(#[from] std::io::Error),

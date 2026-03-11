@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use verifyos_cli::core::engine::Engine;
-use verifyos_cli::rules::core::Severity;
+use verifyos_cli::rules::core::{RuleStatus, Severity};
 use verifyos_cli::rules::entitlements::EntitlementsMismatchRule;
 use verifyos_cli::rules::permissions::CameraUsageDescriptionRule;
 use verifyos_cli::rules::privacy::MissingPrivacyManifestRule;
@@ -29,7 +29,9 @@ fn test_bad_app_fails_rules() {
     let mut has_errors = false;
     for res in results {
         if let Severity::Error = res.severity {
-            if res.result.is_err() {
+            if matches!(res.report, Ok(ref report) if report.status == RuleStatus::Fail)
+                || res.report.is_err()
+            {
                 has_errors = true;
             }
         }
@@ -51,9 +53,13 @@ fn test_good_app_passes_rules() {
     let mut has_errors = false;
     for res in results {
         if let Severity::Error = res.severity {
-            if res.result.is_err() {
+            if matches!(res.report, Ok(ref report) if report.status == RuleStatus::Fail)
+                || res.report.is_err()
+            {
                 has_errors = true;
-                println!("Unexpected error in good_app: {:?}", res.result.err());
+                if let Err(err) = res.report {
+                    println!("Unexpected error in good_app: {:?}", err);
+                }
             }
         }
     }
