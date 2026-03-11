@@ -29,12 +29,14 @@ The App Store Connect validation step is historically a "black box" that costs d
 cargo install verifyos-cli
 ```
 
+This installs the `voc` binary for the CLI.
+
 ## Quick start
 
 Run the CLI tool against your `.ipa` or `.app` path:
 
 ```bash
-verifyos-cli --app path/to/YourApp.ipa
+voc --app path/to/YourApp.ipa
 ```
 
 ### Output Formats
@@ -42,25 +44,25 @@ verifyos-cli --app path/to/YourApp.ipa
 Table (default):
 
 ```bash
-verifyos-cli --app path/to/YourApp.ipa --format table
+voc --app path/to/YourApp.ipa --format table
 ```
 
 JSON:
 
 ```bash
-verifyos-cli --app path/to/YourApp.ipa --format json > report.json
+voc --app path/to/YourApp.ipa --format json > report.json
 ```
 
 SARIF (for GitHub code scanning, etc.):
 
 ```bash
-verifyos-cli --app path/to/YourApp.ipa --format sarif > report.sarif
+voc --app path/to/YourApp.ipa --format sarif > report.sarif
 ```
 
 Markdown report (agent-friendly):
 
 ```bash
-verifyos-cli --app path/to/YourApp.ipa --md-out report.md
+voc --app path/to/YourApp.ipa --md-out report.md
 ```
 
 ### Baseline Mode
@@ -69,7 +71,7 @@ Suppress existing findings by providing a baseline JSON report. Only *new* faili
 
 ```bash
 voc --app path/to/YourApp.ipa --format json > baseline.json
-verifyos-cli --app path/to/YourApp.ipa --baseline baseline.json
+voc --app path/to/YourApp.ipa --baseline baseline.json
 ```
 
 Baseline matching currently uses `rule_id + evidence` for failing findings.

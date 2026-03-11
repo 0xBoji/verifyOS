@@ -9,6 +9,14 @@ repository = "https://github.com/0xBoji/verifyos-cli"
 homepage = "https://github.com/0xBoji/verifyos-cli"
 readme = "README.md"
 
+[[bin]]
+name = "voc"
+path = "src/main.rs"
+
+[[bin]]
+name = "verifyos-cli"
+path = "src/main.rs"
+
 [dependencies]
 # CLI Frontend
 clap = { version = "4.5", features = ["derive"] }
