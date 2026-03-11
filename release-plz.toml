@@ -1,0 +1,9 @@
+[workspace]
+# Conventional PR title
+release_pr_name = "chore(release): release ${version}"
+# Conventional branch name
+branch = "chore/release-plz"
+# Always keep changelog updated
+changelog_update = true
+# GFM alerts in changelogs
+git_release_type = "gfm"

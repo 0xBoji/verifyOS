@@ -1,5 +1,5 @@
-use crate::rules::core::{AppStoreRule, ArtifactContext, RuleError, RuleResult, Severity};
 use crate::parsers::macho_parser::MachOExecutable;
+use crate::rules::core::{AppStoreRule, ArtifactContext, RuleError, RuleResult, Severity};
 
 #[derive(Debug, thiserror::Error, miette::Diagnostic)]
 pub enum EntitlementsError {

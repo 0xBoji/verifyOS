@@ -1,7 +1,7 @@
-use std::path::Path;
 use crate::parsers::plist_reader::{InfoPlist, PlistError};
 use crate::parsers::zip_extractor::{extract_ipa, ExtractionError};
 use crate::rules::core::{AppStoreRule, ArtifactContext, RuleError, RuleResult, Severity};
+use std::path::Path;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OrchestratorError {
