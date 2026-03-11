@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use verifyos_cli::parsers::plist_reader::InfoPlist;
 use verifyos_cli::rules::core::{AppStoreRule, ArtifactContext, RuleStatus};
+use verifyos_cli::rules::info_plist::LSApplicationQueriesSchemesAuditRule;
 use verifyos_cli::rules::permissions::CameraUsageDescriptionRule;
 use verifyos_cli::rules::privacy::MissingPrivacyManifestRule;
 use verifyos_cli::rules::signing::EmbeddedCodeSignatureTeamRule;
@@ -68,4 +69,51 @@ fn test_embedded_team_rule_skips_without_executable() {
     let rule = EmbeddedCodeSignatureTeamRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
     assert_eq!(result.status, RuleStatus::Skip);
+}
+
+#[test]
+fn test_lsapplicationqueries_schemes_passes() {
+    let mut dict = plist::Dictionary::new();
+    dict.insert(
+        "LSApplicationQueriesSchemes".to_string(),
+        plist::Value::Array(vec![
+            plist::Value::String("fb".to_string()),
+            plist::Value::String("twitter".to_string()),
+        ]),
+    );
+
+    let plist = InfoPlist::from_dictionary(dict);
+    let app_path = PathBuf::from("does_not_exist.app");
+    let context = ArtifactContext {
+        app_bundle_path: &app_path,
+        info_plist: Some(&plist),
+    };
+
+    let rule = LSApplicationQueriesSchemesAuditRule;
+    let result = rule.evaluate(&context).expect("Rule should evaluate");
+    assert_eq!(result.status, RuleStatus::Pass);
+}
+
+#[test]
+fn test_lsapplicationqueries_schemes_fails_on_duplicates() {
+    let mut dict = plist::Dictionary::new();
+    dict.insert(
+        "LSApplicationQueriesSchemes".to_string(),
+        plist::Value::Array(vec![
+            plist::Value::String("fb".to_string()),
+            plist::Value::String("fb".to_string()),
+            plist::Value::String("prefs".to_string()),
+        ]),
+    );
+
+    let plist = InfoPlist::from_dictionary(dict);
+    let app_path = PathBuf::from("does_not_exist.app");
+    let context = ArtifactContext {
+        app_bundle_path: &app_path,
+        info_plist: Some(&plist),
+    };
+
+    let rule = LSApplicationQueriesSchemesAuditRule;
+    let result = rule.evaluate(&context).expect("Rule should evaluate");
+    assert_eq!(result.status, RuleStatus::Fail);
 }

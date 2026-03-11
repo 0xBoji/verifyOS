@@ -5,5 +5,13 @@
 	<!-- Missing NSCameraUsageDescription intentionally to trigger rule failure -->
     <key>CFBundleIdentifier</key>
     <string>com.example.BadApp</string>
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>fb</string>
+    </array>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>arm64</string>
+    </array>
 </dict>
 </plist>

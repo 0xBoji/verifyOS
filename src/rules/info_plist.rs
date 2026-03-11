@@ -9,6 +9,15 @@ const LOCATION_KEYS: &[&str] = &[
     "NSLocationAlwaysAndWhenInUseUsageDescription",
     "NSLocationAlwaysUsageDescription",
 ];
+const LSQUERY_SCHEME_LIMIT: usize = 50;
+const SUSPICIOUS_SCHEMES: &[&str] = &[
+    "app-prefs",
+    "prefs",
+    "settings",
+    "sb",
+    "sbsettings",
+    "sbprefs",
+];
 
 pub struct UsageDescriptionsRule;
 
@@ -290,6 +299,139 @@ impl AppStoreRule for InfoPlistCapabilitiesRule {
     }
 }
 
+pub struct LSApplicationQueriesSchemesAuditRule;
+
+impl AppStoreRule for LSApplicationQueriesSchemesAuditRule {
+    fn id(&self) -> &'static str {
+        "RULE_LSAPPLICATIONQUERIES_SCHEMES_AUDIT"
+    }
+
+    fn name(&self) -> &'static str {
+        "LSApplicationQueriesSchemes Audit"
+    }
+
+    fn category(&self) -> RuleCategory {
+        RuleCategory::Metadata
+    }
+
+    fn severity(&self) -> Severity {
+        Severity::Warning
+    }
+
+    fn recommendation(&self) -> &'static str {
+        "Keep LSApplicationQueriesSchemes minimal, valid, and aligned with actual app usage."
+    }
+
+    fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleReport, RuleError> {
+        let Some(plist) = artifact.info_plist else {
+            return Ok(RuleReport {
+                status: RuleStatus::Skip,
+                message: Some("Info.plist not found".to_string()),
+                evidence: None,
+            });
+        };
+
+        let Some(value) = plist.get_value("LSApplicationQueriesSchemes") else {
+            return Ok(RuleReport {
+                status: RuleStatus::Skip,
+                message: Some("LSApplicationQueriesSchemes not declared".to_string()),
+                evidence: None,
+            });
+        };
+
+        let Some(entries) = value.as_array() else {
+            return Ok(RuleReport {
+                status: RuleStatus::Fail,
+                message: Some("LSApplicationQueriesSchemes is not an array".to_string()),
+                evidence: None,
+            });
+        };
+
+        if entries.is_empty() {
+            return Ok(RuleReport {
+                status: RuleStatus::Skip,
+                message: Some("LSApplicationQueriesSchemes is empty".to_string()),
+                evidence: None,
+            });
+        }
+
+        let mut invalid = Vec::new();
+        let mut suspicious = Vec::new();
+        let mut normalized = std::collections::HashMap::new();
+
+        for entry in entries {
+            let Some(raw) = entry.as_string() else {
+                invalid.push("<non-string>".to_string());
+                continue;
+            };
+            let trimmed = raw.trim();
+            if trimmed.is_empty() || !is_valid_scheme(trimmed) {
+                invalid.push(raw.to_string());
+                continue;
+            }
+
+            let normalized_key = trimmed.to_ascii_lowercase();
+            *normalized.entry(normalized_key.clone()).or_insert(0usize) += 1;
+
+            if SUSPICIOUS_SCHEMES
+                .iter()
+                .any(|scheme| scheme.eq_ignore_ascii_case(&normalized_key))
+            {
+                suspicious.push(trimmed.to_string());
+            }
+        }
+
+        let mut issues = Vec::new();
+        if entries.len() > LSQUERY_SCHEME_LIMIT {
+            issues.push(format!(
+                "Contains {} schemes (limit {})",
+                entries.len(),
+                LSQUERY_SCHEME_LIMIT
+            ));
+        }
+
+        let mut duplicates: Vec<String> = normalized
+            .iter()
+            .filter_map(|(scheme, count)| {
+                if *count > 1 {
+                    Some(scheme.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        duplicates.sort();
+        if !duplicates.is_empty() {
+            issues.push(format!("Duplicate schemes: {}", duplicates.join(", ")));
+        }
+
+        if !invalid.is_empty() {
+            issues.push(format!("Invalid scheme entries: {}", invalid.join(", ")));
+        }
+
+        if !suspicious.is_empty() {
+            issues.push(format!(
+                "Potentially private schemes: {}",
+                unique_sorted(suspicious).join(", ")
+            ));
+        }
+
+        if issues.is_empty() {
+            return Ok(RuleReport {
+                status: RuleStatus::Pass,
+                message: Some("LSApplicationQueriesSchemes looks sane".to_string()),
+                evidence: None,
+            });
+        }
+
+        Ok(RuleReport {
+            status: RuleStatus::Fail,
+            message: Some("LSApplicationQueriesSchemes audit failed".to_string()),
+            evidence: Some(issues.join(" | ")),
+        })
+    }
+}
+
 fn is_empty_string(plist: &InfoPlist, key: &str) -> bool {
     match plist.get_string(key) {
         Some(value) => value.trim().is_empty(),
@@ -321,4 +463,29 @@ fn format_evidence(scan: &crate::parsers::macho_scanner::UsageScan) -> String {
     let mut list: Vec<&str> = scan.evidence.iter().copied().collect();
     list.sort_unstable();
     list.join(", ")
+}
+
+fn is_valid_scheme(value: &str) -> bool {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+
+    if !first.is_ascii_alphabetic() {
+        return false;
+    }
+
+    for ch in chars {
+        if !(ch.is_ascii_alphanumeric() || ch == '+' || ch == '-' || ch == '.') {
+            return false;
+        }
+    }
+
+    true
+}
+
+fn unique_sorted(mut values: Vec<String>) -> Vec<String> {
+    values.sort();
+    values.dedup();
+    values
 }

@@ -15,6 +15,7 @@ The App Store Connect validation step is historically a "black box" that costs d
 - **Ruleset metadata**: Every finding includes `rule_id`, `severity`, and `category` (Privacy, Entitlements, Metadata, etc.).
 - **Privacy Manifests**: Checks for missing `PrivacyInfo.xcprivacy`.
 - **Permissions (Info.plist)**: Uses a heuristic Mach-O scan to infer which `NS*UsageDescription` keys are required, then validates presence and non-empty values.
+- **LSApplicationQueriesSchemes**: Audits custom URL scheme allowlists for duplicates, invalid entries, and potential private schemes.
 - **Entitlements**: Detects debug-only entitlements (like `get-task-allow=true`) and flags mismatches between app entitlements and `embedded.mobileprovision` (APNs, keychain groups, iCloud containers).
 - **Signing**: Ensures embedded frameworks/extensions are signed with the same Team ID as the app binary.
 - **CI-friendly reports**: Outputs `table`, `json`, or `sarif` with evidence and remediation recommendations.
@@ -82,6 +83,8 @@ Analysis complete!
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
 │ Missing Camera Usage Description       ┆ Permissions ┆ ERROR    ┆ PASS   ┆ PASS    │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ LSApplicationQueriesSchemes Audit      ┆ Metadata    ┆ WARNING  ┆ PASS   ┆ PASS    │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
 │ Debug Entitlements Present             ┆ Entitlements┆ ERROR    ┆ PASS   ┆ PASS    │
 ╰────────────────────────────────────────┴─────────────┴──────────┴────────┴─────────╯
 ```
@@ -95,6 +98,8 @@ Analysis complete!
 │ Missing Privacy Manifest               ┆ Privacy     ┆ ERROR    ┆ FAIL   ┆ Missing PrivacyInfo.xcprivacy                              │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │ Missing required usage description keys┆ Privacy     ┆ WARNING  ┆ FAIL   ┆ Missing required usage description keys                    │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ LSApplicationQueriesSchemes Audit      ┆ Metadata    ┆ WARNING  ┆ PASS   ┆ PASS                                                       │
 ╰────────────────────────────────────────┴─────────────┴──────────┴────────┴────────────────────────────────────────────────────────────╯
 ```
 
