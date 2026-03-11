@@ -6,5 +6,3 @@ pr_name = "chore(release): release ${version}"
 pr_branch_prefix = "chore/release-plz"
 # Always keep changelog updated
 changelog_update = true
-# Release type
-release_type = "prod"
