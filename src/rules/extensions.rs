@@ -204,7 +204,7 @@ fn compare_entitlements(app: &InfoPlist, ext: &InfoPlist) -> Vec<String> {
             continue;
         }
 
-        if app.has_key(key) == false {
+        if !app.has_key(key) {
             issues.push(format!("entitlement {key} not present in host app"));
             continue;
         }

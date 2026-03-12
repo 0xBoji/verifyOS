@@ -164,7 +164,7 @@ impl AppStoreRule for AtsExceptionsGranularityRule {
                     issues.push(format!("NSExceptionAllowsInsecureHTTPLoads for {domain}"));
                 }
 
-                if is_true(domain_dict, "NSExceptionRequiresForwardSecrecy") == false
+                if !is_true(domain_dict, "NSExceptionRequiresForwardSecrecy")
                     && domain_dict.contains_key("NSExceptionRequiresForwardSecrecy")
                 {
                     issues.push(format!(
@@ -172,7 +172,7 @@ impl AppStoreRule for AtsExceptionsGranularityRule {
                     ));
                 }
 
-                if is_true(domain_dict, "NSRequiresCertificateTransparency") == false
+                if !is_true(domain_dict, "NSRequiresCertificateTransparency")
                     && domain_dict.contains_key("NSRequiresCertificateTransparency")
                 {
                     issues.push(format!(
