@@ -358,3 +358,33 @@ fn test_init_from_scan_with_baseline_keeps_only_new_risks() {
     assert!(!contents.contains("| `high` | `RULE_PRIVACY_MANIFEST` |"));
     assert!(!contents.contains("- **Missing Privacy Manifest** (`RULE_PRIVACY_MANIFEST`)"));
 }
+
+#[test]
+fn test_init_from_scan_with_agent_pack_dir_writes_bundle_and_links_it() {
+    let dir = tempdir().expect("temp dir");
+    let agents_path = dir.path().join("AGENTS.md");
+    let pack_dir = dir.path().join(".verifyos-agent");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "init",
+            "--path",
+            agents_path.to_str().expect("utf8 agents path"),
+            "--from-scan",
+            get_example_path("bad_app.ipa")
+                .to_str()
+                .expect("utf8 app path"),
+            "--agent-pack-dir",
+            pack_dir.to_str().expect("utf8 agent pack dir"),
+        ])
+        .output()
+        .expect("init from scan with pack dir should run");
+
+    assert!(output.status.success());
+    assert!(pack_dir.join("agent-pack.json").exists());
+    assert!(pack_dir.join("agent-pack.md").exists());
+
+    let contents = std::fs::read_to_string(&agents_path).expect("agents file should exist");
+    assert!(contents.contains("Agent bundle:"));
+    assert!(contents.contains(&format!("{}/agent-pack.md", pack_dir.display())));
+}

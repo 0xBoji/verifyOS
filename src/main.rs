@@ -151,6 +151,10 @@ struct InitArgs {
     #[arg(long)]
     baseline: Option<PathBuf>,
 
+    /// Generate agent-pack.json and agent-pack.md into this directory during init
+    #[arg(long)]
+    agent_pack_dir: Option<PathBuf>,
+
     /// Scan profile to use with --from-scan
     #[arg(long, value_enum, default_value = "full")]
     profile: Profile,
@@ -169,7 +173,14 @@ fn main() -> Result<()> {
         } else {
             None
         };
-        write_agents_file(&init.path, agent_pack.as_ref())?;
+        if let (Some(dir), Some(pack)) = (init.agent_pack_dir.as_deref(), agent_pack.as_ref()) {
+            write_agent_pack(dir, pack, AgentPackFormat::Bundle)?;
+        }
+        write_agents_file(
+            &init.path,
+            agent_pack.as_ref(),
+            init.agent_pack_dir.as_deref(),
+        )?;
         println!("Updated {}", init.path.display());
         return Ok(());
     }

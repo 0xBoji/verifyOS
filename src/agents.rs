@@ -8,6 +8,7 @@ const MANAGED_END: &str = "<!-- verifyos-cli:agents:end -->";
 pub fn write_agents_file(
     path: &Path,
     agent_pack: Option<&AgentPack>,
+    agent_pack_dir: Option<&Path>,
 ) -> Result<(), miette::Report> {
     let existing = if path.exists() {
         Some(std::fs::read_to_string(path).map_err(|err| {
@@ -21,7 +22,7 @@ pub fn write_agents_file(
         None
     };
 
-    let managed_block = build_managed_block(agent_pack);
+    let managed_block = build_managed_block(agent_pack, agent_pack_dir);
     let next = merge_agents_content(existing.as_deref(), &managed_block);
     std::fs::write(path, next)
         .map_err(|err| miette::miette!("Failed to write AGENTS.md at {}: {}", path.display(), err))
@@ -57,8 +58,14 @@ pub fn merge_agents_content(existing: Option<&str>, managed_block: &str) -> Stri
     }
 }
 
-pub fn build_managed_block(agent_pack: Option<&AgentPack>) -> String {
+pub fn build_managed_block(
+    agent_pack: Option<&AgentPack>,
+    agent_pack_dir: Option<&Path>,
+) -> String {
     let inventory = rule_inventory();
+    let agent_pack_dir_display = agent_pack_dir
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|| ".verifyos-agent".to_string());
     let mut out = String::new();
     out.push_str(MANAGED_START);
     out.push('\n');
@@ -66,19 +73,26 @@ pub fn build_managed_block(agent_pack: Option<&AgentPack>) -> String {
     out.push_str("Use `voc` before large iOS submission changes or release builds.\n\n");
     out.push_str("### Recommended Workflow\n\n");
     out.push_str("1. Run `voc --app <path-to-.ipa-or-.app> --profile basic` for a quick gate.\n");
-    out.push_str("2. Run `voc --app <path-to-.ipa-or-.app> --profile full --agent-pack .verifyos-agent --agent-pack-format bundle` before release or when an AI agent will patch findings.\n");
-    out.push_str(
-        "3. Read `.verifyos-agent/agent-pack.md` first, then patch the highest-priority scopes.\n",
-    );
+    out.push_str(&format!(
+        "2. Run `voc --app <path-to-.ipa-or-.app> --profile full --agent-pack {} --agent-pack-format bundle` before release or when an AI agent will patch findings.\n",
+        agent_pack_dir_display
+    ));
+    out.push_str(&format!(
+        "3. Read `{}/agent-pack.md` first, then patch the highest-priority scopes.\n",
+        agent_pack_dir_display
+    ));
     out.push_str("4. Re-run `voc` after each fix batch until the pack is clean.\n\n");
     out.push_str("### AI Agent Rules\n\n");
     out.push_str("- Prefer `voc --profile basic` during fast inner loops and `voc --profile full` before shipping.\n");
-    out.push_str("- When findings exist, generate an agent bundle with `voc --agent-pack .verifyos-agent --agent-pack-format bundle`.\n");
+    out.push_str(&format!(
+        "- When findings exist, generate an agent bundle with `voc --agent-pack {} --agent-pack-format bundle`.\n",
+        agent_pack_dir_display
+    ));
     out.push_str("- Fix `high` priority findings before `medium` and `low`.\n");
     out.push_str("- Treat `Info.plist`, `entitlements`, `ats-config`, and `bundle-resources` as the main fix scopes.\n");
     out.push_str("- Re-run `voc` after edits and compare against the previous agent pack to confirm findings were actually removed.\n\n");
     if let Some(pack) = agent_pack {
-        append_current_project_risks(&mut out, pack);
+        append_current_project_risks(&mut out, pack, &agent_pack_dir_display);
     }
     out.push_str("### Rule Inventory\n\n");
     out.push_str("| Rule ID | Name | Category | Severity | Default Profiles |\n");
@@ -92,8 +106,12 @@ pub fn build_managed_block(agent_pack: Option<&AgentPack>) -> String {
     out
 }
 
-fn append_current_project_risks(out: &mut String, pack: &AgentPack) {
+fn append_current_project_risks(out: &mut String, pack: &AgentPack, agent_pack_dir: &str) {
     out.push_str("### Current Project Risks\n\n");
+    out.push_str(&format!(
+        "- Agent bundle: `{}/agent-pack.json` and `{}/agent-pack.md`\n\n",
+        agent_pack_dir, agent_pack_dir
+    ));
     if pack.findings.is_empty() {
         out.push_str(
             "- No new or regressed risks after applying the latest scan context. Re-run `voc` before release to keep this section fresh.\n\n",
@@ -179,10 +197,11 @@ mod tests {
     use super::{build_managed_block, merge_agents_content};
     use crate::report::{AgentFinding, AgentPack};
     use crate::rules::core::{RuleCategory, Severity};
+    use std::path::Path;
 
     #[test]
     fn merge_agents_content_creates_new_file_when_missing() {
-        let block = build_managed_block(None);
+        let block = build_managed_block(None, None);
         let merged = merge_agents_content(None, &block);
 
         assert!(merged.starts_with("# AGENTS.md"));
@@ -192,7 +211,7 @@ mod tests {
 
     #[test]
     fn merge_agents_content_replaces_existing_managed_block() {
-        let block = build_managed_block(None);
+        let block = build_managed_block(None, None);
         let existing = r#"# AGENTS.md
 
 Custom note
@@ -236,11 +255,12 @@ Keep this
             }],
         };
 
-        let block = build_managed_block(Some(&pack));
+        let block = build_managed_block(Some(&pack), Some(Path::new(".verifyos-agent")));
 
         assert!(block.contains("### Current Project Risks"));
         assert!(block.contains("#### Suggested Patch Order"));
         assert!(block.contains("`RULE_USAGE_DESCRIPTIONS`"));
         assert!(block.contains("Info.plist"));
+        assert!(block.contains(".verifyos-agent/agent-pack.md"));
     }
 }
