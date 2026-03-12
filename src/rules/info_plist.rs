@@ -389,6 +389,79 @@ impl AppStoreRule for UIRequiredDeviceCapabilitiesAuditRule {
     }
 }
 
+pub struct InfoPlistVersionConsistencyRule;
+
+impl AppStoreRule for InfoPlistVersionConsistencyRule {
+    fn id(&self) -> &'static str {
+        "RULE_INFO_PLIST_VERSIONING"
+    }
+
+    fn name(&self) -> &'static str {
+        "Info.plist Versioning Consistency"
+    }
+
+    fn category(&self) -> RuleCategory {
+        RuleCategory::Metadata
+    }
+
+    fn severity(&self) -> Severity {
+        Severity::Warning
+    }
+
+    fn recommendation(&self) -> &'static str {
+        "Ensure CFBundleShortVersionString is semver-like and CFBundleVersion is a positive integer or dot-separated numeric string."
+    }
+
+    fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleReport, RuleError> {
+        let Some(plist) = artifact.info_plist else {
+            return Ok(RuleReport {
+                status: RuleStatus::Skip,
+                message: Some("Info.plist not found".to_string()),
+                evidence: None,
+            });
+        };
+
+        let short = plist.get_string("CFBundleShortVersionString");
+        let build = plist.get_string("CFBundleVersion");
+
+        if short.is_none() && build.is_none() {
+            return Ok(RuleReport {
+                status: RuleStatus::Skip,
+                message: Some("Version keys not found".to_string()),
+                evidence: None,
+            });
+        }
+
+        let mut issues = Vec::new();
+
+        match short {
+            Some(value) if is_valid_short_version(value) => {}
+            Some(value) => issues.push(format!("CFBundleShortVersionString invalid: {}", value)),
+            None => issues.push("CFBundleShortVersionString missing".to_string()),
+        }
+
+        match build {
+            Some(value) if is_valid_build_version(value) => {}
+            Some(value) => issues.push(format!("CFBundleVersion invalid: {}", value)),
+            None => issues.push("CFBundleVersion missing".to_string()),
+        }
+
+        if issues.is_empty() {
+            return Ok(RuleReport {
+                status: RuleStatus::Pass,
+                message: Some("Info.plist versioning looks valid".to_string()),
+                evidence: None,
+            });
+        }
+
+        Ok(RuleReport {
+            status: RuleStatus::Fail,
+            message: Some("Info.plist versioning issues".to_string()),
+            evidence: Some(issues.join(" | ")),
+        })
+    }
+}
+
 pub struct LSApplicationQueriesSchemesAuditRule;
 
 impl AppStoreRule for LSApplicationQueriesSchemesAuditRule {
@@ -571,6 +644,42 @@ fn capability_group(value: &str) -> Option<&'static str> {
         "gps" | "location-services" => Some("location"),
         _ => None,
     }
+}
+
+fn is_valid_short_version(value: &str) -> bool {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    let parts: Vec<&str> = trimmed.split('.').collect();
+    if parts.is_empty() || parts.len() > 3 {
+        return false;
+    }
+
+    parts.iter().all(|part| is_numeric_component(part))
+}
+
+fn is_valid_build_version(value: &str) -> bool {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    let parts: Vec<&str> = trimmed.split('.').collect();
+    if parts.is_empty() {
+        return false;
+    }
+
+    parts.iter().all(|part| is_numeric_component(part))
+}
+
+fn is_numeric_component(value: &str) -> bool {
+    if value.is_empty() {
+        return false;
+    }
+
+    value.chars().all(|ch| ch.is_ascii_digit())
 }
 
 fn has_any_location_key(plist: &InfoPlist) -> bool {

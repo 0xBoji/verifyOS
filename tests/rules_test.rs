@@ -5,6 +5,7 @@ use verifyos_cli::parsers::plist_reader::InfoPlist;
 use verifyos_cli::rules::ats::AtsExceptionsGranularityRule;
 use verifyos_cli::rules::bundle_leakage::BundleResourceLeakageRule;
 use verifyos_cli::rules::core::{AppStoreRule, ArtifactContext, RuleStatus};
+use verifyos_cli::rules::info_plist::InfoPlistVersionConsistencyRule;
 use verifyos_cli::rules::info_plist::LSApplicationQueriesSchemesAuditRule;
 use verifyos_cli::rules::info_plist::UIRequiredDeviceCapabilitiesAuditRule;
 use verifyos_cli::rules::permissions::CameraUsageDescriptionRule;
@@ -254,4 +255,52 @@ fn test_bundle_resource_leakage_passes_when_clean() {
     let rule = BundleResourceLeakageRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
     assert_eq!(result.status, RuleStatus::Pass);
+}
+
+#[test]
+fn test_info_plist_versioning_passes() {
+    let mut dict = plist::Dictionary::new();
+    dict.insert(
+        "CFBundleShortVersionString".to_string(),
+        plist::Value::String("1.2.3".to_string()),
+    );
+    dict.insert(
+        "CFBundleVersion".to_string(),
+        plist::Value::String("123".to_string()),
+    );
+
+    let plist = InfoPlist::from_dictionary(dict);
+    let app_path = PathBuf::from("does_not_exist.app");
+    let context = ArtifactContext {
+        app_bundle_path: &app_path,
+        info_plist: Some(&plist),
+    };
+
+    let rule = InfoPlistVersionConsistencyRule;
+    let result = rule.evaluate(&context).expect("Rule should evaluate");
+    assert_eq!(result.status, RuleStatus::Pass);
+}
+
+#[test]
+fn test_info_plist_versioning_fails_on_invalid() {
+    let mut dict = plist::Dictionary::new();
+    dict.insert(
+        "CFBundleShortVersionString".to_string(),
+        plist::Value::String("1.2-beta".to_string()),
+    );
+    dict.insert(
+        "CFBundleVersion".to_string(),
+        plist::Value::String("buildA".to_string()),
+    );
+
+    let plist = InfoPlist::from_dictionary(dict);
+    let app_path = PathBuf::from("does_not_exist.app");
+    let context = ArtifactContext {
+        app_bundle_path: &app_path,
+        info_plist: Some(&plist),
+    };
+
+    let rule = InfoPlistVersionConsistencyRule;
+    let result = rule.evaluate(&context).expect("Rule should evaluate");
+    assert_eq!(result.status, RuleStatus::Fail);
 }
