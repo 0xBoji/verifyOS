@@ -1,5 +1,3 @@
-<h1 align="center">verifyOS-cli</h1>
-
 <p align="center">
   <img src="icons/verifyOS.png" alt="verifyOS icon" />
 </p>
@@ -169,7 +167,7 @@ To ensure the automated semantic versioning and changelog parsing through the `r
 
 ## CI and releases
 
-- CI: lint + tests on push and pull request.
+- CI: fmt + clippy + tests on push and pull request.
 - Automated release PRs: `release-plz` workflow.
 - Publishing: crates.io + GitHub release artifacts.
 
