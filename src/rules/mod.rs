@@ -1,4 +1,5 @@
 pub mod ats;
+pub mod bundle_leakage;
 pub mod bundle_metadata;
 pub mod core;
 pub mod entitlements;

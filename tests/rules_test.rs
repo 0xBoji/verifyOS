@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use tempfile::tempdir;
 use verifyos_cli::parsers::plist_reader::InfoPlist;
 use verifyos_cli::rules::ats::AtsExceptionsGranularityRule;
+use verifyos_cli::rules::bundle_leakage::BundleResourceLeakageRule;
 use verifyos_cli::rules::core::{AppStoreRule, ArtifactContext, RuleStatus};
 use verifyos_cli::rules::info_plist::LSApplicationQueriesSchemesAuditRule;
 use verifyos_cli::rules::info_plist::UIRequiredDeviceCapabilitiesAuditRule;
@@ -216,6 +217,41 @@ fn test_ats_granularity_passes_without_exceptions() {
     };
 
     let rule = AtsExceptionsGranularityRule;
+    let result = rule.evaluate(&context).expect("Rule should evaluate");
+    assert_eq!(result.status, RuleStatus::Pass);
+}
+
+#[test]
+fn test_bundle_resource_leakage_fails_on_secret_file() {
+    let dir = tempdir().expect("temp dir");
+    let app_dir = dir.path().join("TestApp.app");
+    fs::create_dir_all(&app_dir).expect("create app dir");
+
+    let secret_path = app_dir.join("secrets.env");
+    fs::write(&secret_path, b"API_KEY=123").expect("write secret");
+
+    let context = ArtifactContext {
+        app_bundle_path: &app_dir,
+        info_plist: None,
+    };
+
+    let rule = BundleResourceLeakageRule;
+    let result = rule.evaluate(&context).expect("Rule should evaluate");
+    assert_eq!(result.status, RuleStatus::Fail);
+}
+
+#[test]
+fn test_bundle_resource_leakage_passes_when_clean() {
+    let dir = tempdir().expect("temp dir");
+    let app_dir = dir.path().join("TestApp.app");
+    fs::create_dir_all(&app_dir).expect("create app dir");
+
+    let context = ArtifactContext {
+        app_bundle_path: &app_dir,
+        info_plist: None,
+    };
+
+    let rule = BundleResourceLeakageRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
     assert_eq!(result.status, RuleStatus::Pass);
 }

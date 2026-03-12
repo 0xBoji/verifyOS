@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use verifyos_cli::core::engine::Engine;
 use verifyos_cli::rules::ats::AtsExceptionsGranularityRule;
+use verifyos_cli::rules::bundle_leakage::BundleResourceLeakageRule;
 use verifyos_cli::rules::core::{RuleStatus, Severity};
 use verifyos_cli::rules::entitlements::EntitlementsMismatchRule;
 use verifyos_cli::rules::info_plist::LSApplicationQueriesSchemesAuditRule;
@@ -24,6 +25,7 @@ fn create_engine() -> Engine {
     engine.register_rule(Box::new(LSApplicationQueriesSchemesAuditRule));
     engine.register_rule(Box::new(UIRequiredDeviceCapabilitiesAuditRule));
     engine.register_rule(Box::new(AtsExceptionsGranularityRule));
+    engine.register_rule(Box::new(BundleResourceLeakageRule));
     engine
 }
 

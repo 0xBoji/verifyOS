@@ -8,6 +8,7 @@ use verifyos_cli::report::{
     apply_baseline, build_report, render_json, render_markdown, render_sarif, render_table,
 };
 use verifyos_cli::rules::ats::{AtsAuditRule, AtsExceptionsGranularityRule};
+use verifyos_cli::rules::bundle_leakage::BundleResourceLeakageRule;
 use verifyos_cli::rules::bundle_metadata::BundleMetadataConsistencyRule;
 use verifyos_cli::rules::core::{RuleStatus, Severity};
 use verifyos_cli::rules::entitlements::EntitlementsMismatchRule;
@@ -92,6 +93,7 @@ fn main() -> Result<()> {
     engine.register_rule(Box::new(BundleMetadataConsistencyRule));
     engine.register_rule(Box::new(PrivateApiRule));
     engine.register_rule(Box::new(EmbeddedCodeSignatureTeamRule));
+    engine.register_rule(Box::new(BundleResourceLeakageRule));
 
     // 4. Run the Engine
     let results = engine
