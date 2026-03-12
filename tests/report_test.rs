@@ -1,6 +1,6 @@
 use verifyos_cli::report::{
-    render_markdown, render_table, should_exit_with_failure, top_slow_rules, FailOn, ReportData,
-    ReportItem, TimingMode,
+    render_json, render_markdown, render_sarif, render_table, should_exit_with_failure,
+    top_slow_rules, FailOn, ReportData, ReportItem, SlowRule, TimingMode,
 };
 use verifyos_cli::rules::core::{
     ArtifactCacheStats, CacheCounter, RuleCategory, RuleStatus, Severity,
@@ -16,6 +16,11 @@ fn sample_report(items: Vec<ReportItem>) -> ReportData {
             bundle_plist: CacheCounter { hits: 1, misses: 1 },
             ..ArtifactCacheStats::default()
         },
+        slow_rules: vec![SlowRule {
+            rule_id: "RULE_SAMPLE".to_string(),
+            rule_name: "Sample Rule".to_string(),
+            duration_ms: 7,
+        }],
         results: items,
     }
 }
@@ -133,4 +138,35 @@ fn top_slow_rules_returns_descending_breakdown() {
     assert_eq!(breakdown.len(), 2);
     assert_eq!(breakdown[0].rule_id, "RULE_SLOW");
     assert_eq!(breakdown[1].rule_id, "RULE_MEDIUM");
+}
+
+#[test]
+fn render_json_includes_machine_readable_perf_sections() {
+    let report = sample_report(vec![sample_item(Severity::Error, RuleStatus::Fail)]);
+    let json = render_json(&report).expect("json render");
+    let value: serde_json::Value = serde_json::from_str(&json).expect("parse json");
+
+    assert_eq!(value["total_duration_ms"], 42);
+    assert_eq!(value["slow_rules"][0]["rule_id"], "RULE_SAMPLE");
+    assert_eq!(value["cache_stats"]["usage_scan"]["hits"], 2);
+}
+
+#[test]
+fn render_sarif_includes_perf_metadata() {
+    let report = sample_report(vec![sample_item(Severity::Error, RuleStatus::Fail)]);
+    let sarif = render_sarif(&report).expect("sarif render");
+    let value: serde_json::Value = serde_json::from_str(&sarif).expect("parse sarif");
+
+    assert_eq!(
+        value["runs"][0]["properties"]["totalDurationMs"],
+        serde_json::Value::from(42)
+    );
+    assert_eq!(
+        value["runs"][0]["properties"]["slowRules"][0]["ruleId"],
+        "RULE_SAMPLE"
+    );
+    assert_eq!(
+        value["runs"][0]["invocations"][0]["properties"]["cacheStats"]["usage_scan"]["hits"],
+        serde_json::Value::from(2)
+    );
 }

@@ -16,6 +16,7 @@ pub struct ReportData {
     pub generated_at_unix: u64,
     pub total_duration_ms: u128,
     pub cache_stats: ArtifactCacheStats,
+    pub slow_rules: Vec<SlowRule>,
     pub results: Vec<ReportItem>,
 }
 
@@ -93,12 +94,18 @@ pub fn build_report(
         });
     }
 
-    ReportData {
+    let report = ReportData {
         ruleset_version: RULESET_VERSION.to_string(),
         generated_at_unix,
         total_duration_ms,
         cache_stats,
+        slow_rules: Vec::new(),
         results: items,
+    };
+
+    ReportData {
+        slow_rules: top_slow_rules(&report, 3),
+        ..report
     }
 }
 
@@ -209,7 +216,7 @@ pub fn render_table(report: &ReportData, timing_mode: TimingMode) -> String {
     }
 
     if timing_mode != TimingMode::Off {
-        let slow_rules = format_slow_rules(top_slow_rules(report, 3));
+        let slow_rules = format_slow_rules(report.slow_rules.clone());
         let cache_summary = format_cache_stats(&report.cache_stats);
         format!(
             "{}\nTotal scan time: {} ms{}{}\n",
@@ -263,12 +270,27 @@ pub fn render_sarif(report: &ReportData) -> Result<String, serde_json::Error> {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "runs": [
             {
+                "invocations": [
+                    {
+                        "executionSuccessful": true,
+                        "properties": {
+                            "totalDurationMs": report.total_duration_ms,
+                            "slowRules": sarif_slow_rules(&report.slow_rules),
+                            "cacheStats": report.cache_stats,
+                        }
+                    }
+                ],
                 "tool": {
                     "driver": {
                         "name": "verifyos-cli",
                         "semanticVersion": report.ruleset_version,
                         "rules": rules
                     }
+                },
+                "properties": {
+                    "totalDurationMs": report.total_duration_ms,
+                    "slowRules": sarif_slow_rules(&report.slow_rules),
+                    "cacheStats": report.cache_stats,
                 },
                 "results": results
             }
@@ -320,10 +342,9 @@ pub fn render_markdown(
             "- Total scan time: {} ms\n",
             report.total_duration_ms
         ));
-        let slow_rules = top_slow_rules(report, 3);
-        if !slow_rules.is_empty() {
+        if !report.slow_rules.is_empty() {
             out.push_str("- Slowest rules:\n");
-            for item in &slow_rules {
+            for item in &report.slow_rules {
                 out.push_str(&format!(
                     "  - {} (`{}`): {} ms\n",
                     item.rule_name, item.rule_id, item.duration_ms
@@ -424,4 +445,17 @@ fn markdown_cache_stats(stats: &ArtifactCacheStats) -> Vec<String> {
 
 fn format_cache_counter(name: &str, counter: CacheCounter) -> String {
     format!("{name} h/m={}/{}", counter.hits, counter.misses)
+}
+
+fn sarif_slow_rules(items: &[SlowRule]) -> Vec<serde_json::Value> {
+    items
+        .iter()
+        .map(|item| {
+            serde_json::json!({
+                "ruleId": item.rule_id,
+                "ruleName": item.rule_name,
+                "durationMs": item.duration_ms,
+            })
+        })
+        .collect()
 }

@@ -162,6 +162,7 @@ voc --app path/to/YourApp.ipa --timings full
 JSON and Markdown reports still carry timing data for automation and profiling.
 The timing summary also highlights the slowest rules so you can spot hot paths quickly.
 It also includes cache hit/miss activity for artifact scans so we can tell whether a slow run is coming from repeated IO or genuinely expensive rules.
+JSON and SARIF outputs now expose machine-readable perf metadata too, including `slow_rules`, `total_duration_ms`, and cache telemetry.
 
 ### Baseline Mode
 
