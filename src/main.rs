@@ -16,7 +16,7 @@ use verifyos_cli::profiles::{
 use verifyos_cli::report::{
     apply_agent_pack_baseline, apply_baseline, build_agent_pack, build_report,
     render_agent_pack_markdown, render_json, render_markdown, render_sarif, render_table,
-    should_exit_with_failure, AgentPackFormat, FailOn, TimingMode,
+    should_exit_with_failure, AgentPack, AgentPackFormat, FailOn, TimingMode,
 };
 
 const HELP_BANNER: &str = r#"
@@ -196,6 +196,10 @@ struct DoctorArgs {
     /// Output format for doctor results
     #[arg(long, value_enum, default_value = "table")]
     format: OutputFormat,
+
+    /// Repair a broken or missing agent setup under the chosen output root
+    #[arg(long)]
+    fix: bool,
 }
 
 fn main() -> Result<()> {
@@ -292,6 +296,9 @@ fn main() -> Result<()> {
         let agents_path = doctor
             .agents
             .unwrap_or_else(|| output_dir.join("AGENTS.md"));
+        if doctor.fix {
+            repair_doctor_setup(&output_dir, &agents_path)?;
+        }
         let report = run_doctor(doctor.config.as_deref(), &agents_path);
         render_doctor_report(&report, doctor.format)?;
         if report.has_failures() {
@@ -491,6 +498,57 @@ fn render_doctor_report(report: &DoctorReport, format: OutputFormat) -> Result<(
         }
     }
     Ok(())
+}
+
+fn repair_doctor_setup(output_dir: &std::path::Path, agents_path: &std::path::Path) -> Result<()> {
+    std::fs::create_dir_all(output_dir).into_diagnostic()?;
+
+    let agent_pack_dir = output_dir.join(".verifyos-agent");
+    let agent_pack_json = agent_pack_dir.join("agent-pack.json");
+    let script_path = agent_pack_dir.join("next-steps.sh");
+    let fix_prompt_path = output_dir.join("fix-prompt.md");
+
+    std::fs::create_dir_all(&agent_pack_dir).into_diagnostic()?;
+
+    let command_hints = CommandHints {
+        app_path: Some("<path-to-.ipa-or-.app>".to_string()),
+        baseline_path: None,
+        agent_pack_dir: Some(agent_pack_dir.display().to_string()),
+        profile: Some("full".to_string()),
+        shell_script: true,
+        fix_prompt_path: Some(fix_prompt_path.display().to_string()),
+    };
+
+    let pack = load_agent_pack(&agent_pack_json).unwrap_or_else(empty_agent_pack);
+
+    write_agents_file(
+        agents_path,
+        Some(&pack),
+        Some(&agent_pack_dir),
+        Some(&command_hints),
+    )?;
+    write_agent_pack(&agent_pack_dir, &pack, AgentPackFormat::Bundle)?;
+    write_next_steps_script(&script_path, &command_hints)?;
+    write_fix_prompt_file(&fix_prompt_path, &pack, &command_hints)?;
+
+    Ok(())
+}
+
+fn load_agent_pack(path: &std::path::Path) -> Option<AgentPack> {
+    if !path.exists() {
+        return None;
+    }
+
+    let raw = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+fn empty_agent_pack() -> AgentPack {
+    AgentPack {
+        generated_at_unix: 0,
+        total_findings: 0,
+        findings: Vec::new(),
+    }
 }
 
 fn shell_quote(value: &str) -> String {

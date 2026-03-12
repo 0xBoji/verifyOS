@@ -239,11 +239,25 @@ Check an output root created by `voc init --output-dir`:
 voc doctor --output-dir .verifyos
 ```
 
+Repair a broken or missing local agent setup in place:
+
+```bash
+voc doctor --output-dir .verifyos --fix
+```
+
 `voc doctor` validates:
 - config parsing
 - `AGENTS.md` presence
 - referenced agent assets like `agent-pack.json`, `agent-pack.md`, and `next-steps.sh`
 - sample `voc` commands inside `AGENTS.md`
+
+When `--fix` is enabled, `voc doctor` will:
+- create or refresh `AGENTS.md`
+- recreate `.verifyos-agent/agent-pack.json`
+- recreate `.verifyos-agent/agent-pack.md`
+- recreate `.verifyos-agent/next-steps.sh`
+- recreate `fix-prompt.md`
+- repair the managed `verifyos-cli` block so its pointers line up with the chosen output root again
 
 ### GitHub Actions wrapper
 

@@ -619,3 +619,64 @@ fn test_doctor_fails_when_agents_references_missing_assets() {
     assert!(stdout.contains("Referenced assets"));
     assert!(stdout.contains("FAIL"));
 }
+
+#[test]
+fn test_doctor_fix_bootstraps_missing_agent_assets() {
+    let dir = tempdir().expect("temp dir");
+    let output_dir = dir.path().join("artifacts");
+
+    let doctor = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "doctor",
+            "--output-dir",
+            output_dir.to_str().expect("utf8 output dir"),
+            "--fix",
+        ])
+        .output()
+        .expect("doctor --fix should run");
+
+    assert!(doctor.status.success());
+    assert!(output_dir.join("AGENTS.md").exists());
+    assert!(output_dir.join("fix-prompt.md").exists());
+    assert!(output_dir.join(".verifyos-agent/agent-pack.json").exists());
+    assert!(output_dir.join(".verifyos-agent/agent-pack.md").exists());
+    assert!(output_dir.join(".verifyos-agent/next-steps.sh").exists());
+
+    let agents =
+        std::fs::read_to_string(output_dir.join("AGENTS.md")).expect("agents file should exist");
+    assert!(agents.contains(".verifyos-agent/agent-pack.md"));
+    assert!(agents.contains(".verifyos-agent/next-steps.sh"));
+    assert!(agents.contains("fix-prompt.md"));
+}
+
+#[test]
+fn test_doctor_fix_repairs_managed_block_paths_and_keeps_custom_notes() {
+    let dir = tempdir().expect("temp dir");
+    let output_dir = dir.path().join("artifacts");
+    std::fs::create_dir_all(&output_dir).expect("create output dir");
+    std::fs::write(
+        output_dir.join("AGENTS.md"),
+        "# AGENTS.md\n\nKeep me\n\n<!-- verifyos-cli:agents:start -->\n## verifyOS-cli\n\n- Agent bundle: `broken/agent-pack.json` and `broken/agent-pack.md`\n- Shortcut script: `broken/next-steps.sh`\n- Agent fix prompt: `broken/fix-prompt.md`\n<!-- verifyos-cli:agents:end -->\n",
+    )
+    .expect("write agents");
+
+    let doctor = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "doctor",
+            "--output-dir",
+            output_dir.to_str().expect("utf8 output dir"),
+            "--fix",
+        ])
+        .output()
+        .expect("doctor --fix should run");
+
+    assert!(doctor.status.success());
+
+    let agents =
+        std::fs::read_to_string(output_dir.join("AGENTS.md")).expect("agents file should exist");
+    assert!(agents.contains("Keep me"));
+    assert!(agents.contains(".verifyos-agent/agent-pack.md"));
+    assert!(agents.contains(".verifyos-agent/next-steps.sh"));
+    assert!(agents.contains("fix-prompt.md"));
+    assert!(!agents.contains("broken/agent-pack.md"));
+}
