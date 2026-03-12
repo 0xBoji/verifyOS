@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::process::Command;
 use verifyos_cli::core::engine::Engine;
 use verifyos_cli::profiles::{register_rules, RuleSelection, ScanProfile};
 use verifyos_cli::rules::core::{RuleStatus, Severity};
@@ -66,4 +67,18 @@ fn test_good_app_passes_rules() {
         !has_errors,
         "Expected good_app.ipa to pass all rules, but it triggered an error."
     );
+}
+
+#[test]
+fn test_help_shows_verify_os_banner() {
+    let output = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .arg("--help")
+        .output()
+        .expect("help should run");
+
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout).expect("stdout should be utf8");
+    assert!(stdout.contains("verify-OS"));
+    assert!(stdout.contains("████"));
 }

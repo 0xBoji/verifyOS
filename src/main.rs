@@ -14,6 +14,16 @@ use verifyos_cli::report::{
     should_exit_with_failure, FailOn, TimingMode,
 };
 
+const HELP_BANNER: &str = r#"
+██    ██  ██████   ██████
+██    ██ ██    ██ ██
+██    ██ ██    ██ ██
+ ██  ██  ██    ██ ██
+  ████    ██████   ██████
+
+verify-OS
+"#;
+
 #[derive(Clone, Debug, ValueEnum)]
 enum OutputFormat {
     Table,
@@ -41,7 +51,7 @@ enum TimingLevel {
 }
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None, before_help = HELP_BANNER)]
 struct Args {
     /// Path to the iOS App Bundle (.ipa or .app)
     #[arg(short, long)]
