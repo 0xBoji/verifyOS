@@ -5,7 +5,7 @@ use miette::{IntoDiagnostic, Result};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use verifyos_cli::agents::write_agents_file;
+use verifyos_cli::agents::{write_agents_file, CommandHints};
 use verifyos_cli::config::{load_file_config, resolve_runtime_config, CliOverrides};
 use verifyos_cli::core::engine::Engine;
 use verifyos_cli::profiles::{
@@ -155,6 +155,10 @@ struct InitArgs {
     #[arg(long)]
     agent_pack_dir: Option<PathBuf>,
 
+    /// Write copy-paste follow-up commands into AGENTS.md
+    #[arg(long)]
+    write_commands: bool,
+
     /// Scan profile to use with --from-scan
     #[arg(long, value_enum, default_value = "full")]
     profile: Profile,
@@ -176,10 +180,26 @@ fn main() -> Result<()> {
         if let (Some(dir), Some(pack)) = (init.agent_pack_dir.as_deref(), agent_pack.as_ref()) {
             write_agent_pack(dir, pack, AgentPackFormat::Bundle)?;
         }
+        let command_hints = init.write_commands.then(|| CommandHints {
+            app_path: init
+                .from_scan
+                .as_deref()
+                .map(|path| path.display().to_string()),
+            baseline_path: init
+                .baseline
+                .as_deref()
+                .map(|path| path.display().to_string()),
+            agent_pack_dir: init
+                .agent_pack_dir
+                .as_deref()
+                .map(|path| path.display().to_string()),
+            profile: Some(profile_key(init.profile)),
+        });
         write_agents_file(
             &init.path,
             agent_pack.as_ref(),
             init.agent_pack_dir.as_deref(),
+            command_hints.as_ref(),
         )?;
         println!("Updated {}", init.path.display());
         return Ok(());

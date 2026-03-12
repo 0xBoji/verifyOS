@@ -388,3 +388,38 @@ fn test_init_from_scan_with_agent_pack_dir_writes_bundle_and_links_it() {
     assert!(contents.contains("Agent bundle:"));
     assert!(contents.contains(&format!("{}/agent-pack.md", pack_dir.display())));
 }
+
+#[test]
+fn test_init_write_commands_injects_follow_up_commands() {
+    let dir = tempdir().expect("temp dir");
+    let agents_path = dir.path().join("AGENTS.md");
+    let pack_dir = dir.path().join(".verifyos-agent");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "init",
+            "--path",
+            agents_path.to_str().expect("utf8 agents path"),
+            "--from-scan",
+            get_example_path("bad_app.ipa")
+                .to_str()
+                .expect("utf8 app path"),
+            "--agent-pack-dir",
+            pack_dir.to_str().expect("utf8 agent pack dir"),
+            "--profile",
+            "basic",
+            "--write-commands",
+        ])
+        .output()
+        .expect("init write commands should run");
+
+    assert!(output.status.success());
+
+    let contents = std::fs::read_to_string(&agents_path).expect("agents file should exist");
+    assert!(contents.contains("### Next Commands"));
+    assert!(contents.contains("voc --app"));
+    assert!(contents.contains("--profile basic"));
+    assert!(contents.contains("--write-commands"));
+    assert!(contents.contains(&pack_dir.display().to_string()));
+    assert!(contents.contains("agent-pack-format bundle"));
+}

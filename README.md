@@ -187,12 +187,19 @@ Refresh `AGENTS.md` and generate an agent bundle in one step:
 voc init --from-scan path/to/YourApp.ipa --agent-pack-dir .verifyos-agent
 ```
 
+Also inject copy-paste follow-up commands for the next agent loop:
+
+```bash
+voc init --from-scan path/to/YourApp.ipa --agent-pack-dir .verifyos-agent --write-commands
+```
+
 The generated block includes:
 - a recommended `voc` workflow for quick and release scans
 - AI agent fix-loop rules
 - a live rule inventory with `rule_id`, category, severity, and default profiles
 - an optional `Current Project Risks` section with priority order and suggested fix scopes from the latest scan
 - an optional pointer to `agent-pack.json` and `agent-pack.md` when `--agent-pack-dir` is used
+- an optional `Next Commands` section with exact re-scan and report refresh commands when `--write-commands` is used
 
 When `--baseline` is provided with `--from-scan`, the `Current Project Risks` section only keeps findings that are new or regressed compared with the older JSON report. That keeps the playbook focused on what changed in the current branch.
 

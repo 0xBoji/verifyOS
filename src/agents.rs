@@ -5,10 +5,19 @@ use std::path::Path;
 const MANAGED_START: &str = "<!-- verifyos-cli:agents:start -->";
 const MANAGED_END: &str = "<!-- verifyos-cli:agents:end -->";
 
+#[derive(Debug, Clone, Default)]
+pub struct CommandHints {
+    pub app_path: Option<String>,
+    pub baseline_path: Option<String>,
+    pub agent_pack_dir: Option<String>,
+    pub profile: Option<String>,
+}
+
 pub fn write_agents_file(
     path: &Path,
     agent_pack: Option<&AgentPack>,
     agent_pack_dir: Option<&Path>,
+    command_hints: Option<&CommandHints>,
 ) -> Result<(), miette::Report> {
     let existing = if path.exists() {
         Some(std::fs::read_to_string(path).map_err(|err| {
@@ -22,7 +31,7 @@ pub fn write_agents_file(
         None
     };
 
-    let managed_block = build_managed_block(agent_pack, agent_pack_dir);
+    let managed_block = build_managed_block(agent_pack, agent_pack_dir, command_hints);
     let next = merge_agents_content(existing.as_deref(), &managed_block);
     std::fs::write(path, next)
         .map_err(|err| miette::miette!("Failed to write AGENTS.md at {}: {}", path.display(), err))
@@ -61,6 +70,7 @@ pub fn merge_agents_content(existing: Option<&str>, managed_block: &str) -> Stri
 pub fn build_managed_block(
     agent_pack: Option<&AgentPack>,
     agent_pack_dir: Option<&Path>,
+    command_hints: Option<&CommandHints>,
 ) -> String {
     let inventory = rule_inventory();
     let agent_pack_dir_display = agent_pack_dir
@@ -91,6 +101,9 @@ pub fn build_managed_block(
     out.push_str("- Fix `high` priority findings before `medium` and `low`.\n");
     out.push_str("- Treat `Info.plist`, `entitlements`, `ats-config`, and `bundle-resources` as the main fix scopes.\n");
     out.push_str("- Re-run `voc` after edits and compare against the previous agent pack to confirm findings were actually removed.\n\n");
+    if let Some(hints) = command_hints {
+        append_next_commands(&mut out, hints);
+    }
     if let Some(pack) = agent_pack {
         append_current_project_risks(&mut out, pack, &agent_pack_dir_display);
     }
@@ -104,6 +117,52 @@ pub fn build_managed_block(
     out.push_str(MANAGED_END);
     out.push('\n');
     out
+}
+
+fn append_next_commands(out: &mut String, hints: &CommandHints) {
+    let Some(app_path) = hints.app_path.as_deref() else {
+        return;
+    };
+
+    let profile = hints.profile.as_deref().unwrap_or("full");
+    let agent_pack_dir = hints.agent_pack_dir.as_deref().unwrap_or(".verifyos-agent");
+
+    out.push_str("### Next Commands\n\n");
+    out.push_str("Use these exact commands after each patch batch:\n\n");
+    out.push_str("```bash\n");
+    out.push_str(&format!(
+        "voc --app {} --profile {}\n",
+        shell_quote(app_path),
+        profile
+    ));
+    out.push_str(&format!(
+        "voc --app {} --profile {} --format json > report.json\n",
+        shell_quote(app_path),
+        profile
+    ));
+    out.push_str(&format!(
+        "voc --app {} --profile {} --agent-pack {} --agent-pack-format bundle\n",
+        shell_quote(app_path),
+        profile,
+        shell_quote(agent_pack_dir)
+    ));
+    if let Some(baseline) = hints.baseline_path.as_deref() {
+        out.push_str(&format!(
+            "voc init --from-scan {} --profile {} --baseline {} --agent-pack-dir {} --write-commands\n",
+            shell_quote(app_path),
+            profile,
+            shell_quote(baseline),
+            shell_quote(agent_pack_dir)
+        ));
+    } else {
+        out.push_str(&format!(
+            "voc init --from-scan {} --profile {} --agent-pack-dir {} --write-commands\n",
+            shell_quote(app_path),
+            profile,
+            shell_quote(agent_pack_dir)
+        ));
+    }
+    out.push_str("```\n\n");
 }
 
 fn append_current_project_risks(out: &mut String, pack: &AgentPack, agent_pack_dir: &str) {
@@ -192,16 +251,27 @@ fn managed_block_range(content: &str) -> Option<(usize, usize)> {
     Some((start, end_marker + MANAGED_END.len()))
 }
 
+fn shell_quote(value: &str) -> String {
+    if value
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || "/._-".contains(ch))
+    {
+        value.to_string()
+    } else {
+        format!("'{}'", value.replace('\'', "'\"'\"'"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{build_managed_block, merge_agents_content};
+    use super::{build_managed_block, merge_agents_content, CommandHints};
     use crate::report::{AgentFinding, AgentPack};
     use crate::rules::core::{RuleCategory, Severity};
     use std::path::Path;
 
     #[test]
     fn merge_agents_content_creates_new_file_when_missing() {
-        let block = build_managed_block(None, None);
+        let block = build_managed_block(None, None, None);
         let merged = merge_agents_content(None, &block);
 
         assert!(merged.starts_with("# AGENTS.md"));
@@ -211,7 +281,7 @@ mod tests {
 
     #[test]
     fn merge_agents_content_replaces_existing_managed_block() {
-        let block = build_managed_block(None, None);
+        let block = build_managed_block(None, None, None);
         let existing = r#"# AGENTS.md
 
 Custom note
@@ -255,12 +325,29 @@ Keep this
             }],
         };
 
-        let block = build_managed_block(Some(&pack), Some(Path::new(".verifyos-agent")));
+        let block = build_managed_block(Some(&pack), Some(Path::new(".verifyos-agent")), None);
 
         assert!(block.contains("### Current Project Risks"));
         assert!(block.contains("#### Suggested Patch Order"));
         assert!(block.contains("`RULE_USAGE_DESCRIPTIONS`"));
         assert!(block.contains("Info.plist"));
         assert!(block.contains(".verifyos-agent/agent-pack.md"));
+    }
+
+    #[test]
+    fn build_managed_block_includes_next_commands_when_requested() {
+        let hints = CommandHints {
+            app_path: Some("examples/bad_app.ipa".to_string()),
+            baseline_path: Some("baseline.json".to_string()),
+            agent_pack_dir: Some(".verifyos-agent".to_string()),
+            profile: Some("basic".to_string()),
+        };
+
+        let block = build_managed_block(None, Some(Path::new(".verifyos-agent")), Some(&hints));
+
+        assert!(block.contains("### Next Commands"));
+        assert!(block.contains("voc --app examples/bad_app.ipa --profile basic"));
+        assert!(block.contains("--baseline baseline.json"));
+        assert!(block.contains("--write-commands"));
     }
 }
