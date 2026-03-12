@@ -8,6 +8,8 @@ license = "MIT"
 repository = "https://github.com/0xBoji/verifyos-cli"
 homepage = "https://github.com/0xBoji/verifyos-cli"
 readme = "README.md"
+keywords = ["ai", "ai-agent", "ios", "appstore", "security"]
+categories = ["command-line-utilities", "development-tools"]
 autobins = false
 
 [[bin]]
