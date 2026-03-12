@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use tempfile::tempdir;
 use verifyos_cli::parsers::plist_reader::InfoPlist;
+use verifyos_cli::rules::ats::AtsExceptionsGranularityRule;
 use verifyos_cli::rules::core::{AppStoreRule, ArtifactContext, RuleStatus};
 use verifyos_cli::rules::info_plist::LSApplicationQueriesSchemesAuditRule;
 use verifyos_cli::rules::info_plist::UIRequiredDeviceCapabilitiesAuditRule;
@@ -169,6 +170,52 @@ fn test_device_capabilities_audit_passes_on_usage() {
     };
 
     let rule = UIRequiredDeviceCapabilitiesAuditRule;
+    let result = rule.evaluate(&context).expect("Rule should evaluate");
+    assert_eq!(result.status, RuleStatus::Pass);
+}
+
+#[test]
+fn test_ats_granularity_fails_on_broad_exception() {
+    let mut ats = plist::Dictionary::new();
+    ats.insert(
+        "NSAllowsArbitraryLoads".to_string(),
+        plist::Value::Boolean(true),
+    );
+
+    let mut root = plist::Dictionary::new();
+    root.insert(
+        "NSAppTransportSecurity".to_string(),
+        plist::Value::Dictionary(ats),
+    );
+
+    let plist = InfoPlist::from_dictionary(root);
+    let app_path = PathBuf::from("does_not_exist.app");
+    let context = ArtifactContext {
+        app_bundle_path: &app_path,
+        info_plist: Some(&plist),
+    };
+
+    let rule = AtsExceptionsGranularityRule;
+    let result = rule.evaluate(&context).expect("Rule should evaluate");
+    assert_eq!(result.status, RuleStatus::Fail);
+}
+
+#[test]
+fn test_ats_granularity_passes_without_exceptions() {
+    let mut root = plist::Dictionary::new();
+    root.insert(
+        "NSAppTransportSecurity".to_string(),
+        plist::Value::Dictionary(plist::Dictionary::new()),
+    );
+
+    let plist = InfoPlist::from_dictionary(root);
+    let app_path = PathBuf::from("does_not_exist.app");
+    let context = ArtifactContext {
+        app_bundle_path: &app_path,
+        info_plist: Some(&plist),
+    };
+
+    let rule = AtsExceptionsGranularityRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
     assert_eq!(result.status, RuleStatus::Pass);
 }

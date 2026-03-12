@@ -7,7 +7,7 @@ use verifyos_cli::core::engine::Engine;
 use verifyos_cli::report::{
     apply_baseline, build_report, render_json, render_markdown, render_sarif, render_table,
 };
-use verifyos_cli::rules::ats::AtsAuditRule;
+use verifyos_cli::rules::ats::{AtsAuditRule, AtsExceptionsGranularityRule};
 use verifyos_cli::rules::bundle_metadata::BundleMetadataConsistencyRule;
 use verifyos_cli::rules::core::{RuleStatus, Severity};
 use verifyos_cli::rules::entitlements::EntitlementsMismatchRule;
@@ -84,6 +84,7 @@ fn main() -> Result<()> {
     engine.register_rule(Box::new(UIRequiredDeviceCapabilitiesAuditRule));
     engine.register_rule(Box::new(ExportComplianceRule));
     engine.register_rule(Box::new(AtsAuditRule));
+    engine.register_rule(Box::new(AtsExceptionsGranularityRule));
     engine.register_rule(Box::new(EntitlementsMismatchRule));
     engine.register_rule(Box::new(EntitlementsProvisioningMismatchRule));
     engine.register_rule(Box::new(NestedBundleDebugEntitlementRule));

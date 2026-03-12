@@ -32,6 +32,7 @@ The App Store Connect validation step is historically a "black box" that costs d
 - **Permissions (Info.plist)**: Uses a heuristic Mach-O scan to infer which `NS*UsageDescription` keys are required, then validates presence and non-empty values.
 - **LSApplicationQueriesSchemes**: Audits custom URL scheme allowlists for duplicates, invalid entries, and potential private schemes.
 - **UIRequiredDeviceCapabilities**: Flags capabilities that don't match observed binary usage.
+- **ATS**: Flags overly broad ATS exceptions (global allows, includes subdomains, insecure TLS settings).
 - **Entitlements**: Detects debug-only entitlements (like `get-task-allow=true`) and flags mismatches between app entitlements and `embedded.mobileprovision` (APNs, keychain groups, iCloud containers).
 - **Signing**: Ensures embedded frameworks/extensions are signed with the same Team ID as the app binary.
 - **CI-friendly reports**: Outputs `table`, `json`, or `sarif` with evidence and remediation recommendations.
@@ -105,6 +106,8 @@ Analysis complete!
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
 │ UIRequiredDeviceCapabilities Audit     ┆ Metadata    ┆ WARNING  ┆ PASS   ┆ PASS    │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
+│ ATS Exceptions Too Broad               ┆ ATS         ┆ WARNING  ┆ PASS   ┆ PASS    │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
 │ Debug Entitlements Present             ┆ Entitlements┆ ERROR    ┆ PASS   ┆ PASS    │
 ╰────────────────────────────────────────┴─────────────┴──────────┴────────┴─────────╯
 ```
@@ -122,6 +125,8 @@ Analysis complete!
 │ LSApplicationQueriesSchemes Audit      ┆ Metadata    ┆ WARNING  ┆ PASS   ┆ PASS                                                       │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │ UIRequiredDeviceCapabilities Audit     ┆ Metadata    ┆ WARNING  ┆ PASS   ┆ PASS                                                       │
+├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
+│ ATS Exceptions Too Broad               ┆ ATS         ┆ WARNING  ┆ PASS   ┆ PASS                                                       │
 ╰────────────────────────────────────────┴─────────────┴──────────┴────────┴────────────────────────────────────────────────────────────╯
 ```
 
