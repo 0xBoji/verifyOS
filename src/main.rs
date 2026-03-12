@@ -4,38 +4,23 @@ use miette::{IntoDiagnostic, Result};
 use std::path::PathBuf;
 
 use verifyos_cli::core::engine::Engine;
+use verifyos_cli::profiles::{register_rules, ScanProfile};
 use verifyos_cli::report::{
     apply_baseline, build_report, render_json, render_markdown, render_sarif, render_table,
 };
-use verifyos_cli::rules::ats::{AtsAuditRule, AtsExceptionsGranularityRule};
-use verifyos_cli::rules::bundle_leakage::BundleResourceLeakageRule;
-use verifyos_cli::rules::bundle_metadata::BundleMetadataConsistencyRule;
 use verifyos_cli::rules::core::{RuleStatus, Severity};
-use verifyos_cli::rules::entitlements::EntitlementsMismatchRule;
-use verifyos_cli::rules::entitlements::EntitlementsProvisioningMismatchRule;
-use verifyos_cli::rules::export_compliance::ExportComplianceRule;
-use verifyos_cli::rules::extensions::ExtensionEntitlementsCompatibilityRule;
-use verifyos_cli::rules::info_plist::InfoPlistCapabilitiesRule;
-use verifyos_cli::rules::info_plist::InfoPlistRequiredKeysRule;
-use verifyos_cli::rules::info_plist::InfoPlistVersionConsistencyRule;
-use verifyos_cli::rules::info_plist::LSApplicationQueriesSchemesAuditRule;
-use verifyos_cli::rules::info_plist::UIRequiredDeviceCapabilitiesAuditRule;
-use verifyos_cli::rules::info_plist::UsageDescriptionsRule;
-use verifyos_cli::rules::info_plist::UsageDescriptionsValueRule;
-use verifyos_cli::rules::nested_bundles::NestedBundleDebugEntitlementRule;
-use verifyos_cli::rules::nested_bundles::NestedBundleEntitlementsRule;
-use verifyos_cli::rules::permissions::CameraUsageDescriptionRule;
-use verifyos_cli::rules::privacy::MissingPrivacyManifestRule;
-use verifyos_cli::rules::privacy_manifest::PrivacyManifestCompletenessRule;
-use verifyos_cli::rules::privacy_sdk::PrivacyManifestSdkCrossCheckRule;
-use verifyos_cli::rules::private_api::PrivateApiRule;
-use verifyos_cli::rules::signing::EmbeddedCodeSignatureTeamRule;
 
 #[derive(Clone, Debug, ValueEnum)]
 enum OutputFormat {
     Table,
     Json,
     Sarif,
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+enum Profile {
+    Basic,
+    Full,
 }
 
 #[derive(Parser, Debug)]
@@ -56,6 +41,10 @@ struct Args {
     /// Write a clean Markdown report to a file (agent-friendly)
     #[arg(long)]
     md_out: Option<PathBuf>,
+
+    /// Scan profile: basic or full
+    #[arg(long, value_enum, default_value_t = Profile::Full)]
+    profile: Profile,
 }
 
 fn main() -> Result<()> {
@@ -75,31 +64,11 @@ fn main() -> Result<()> {
 
     // 3. Initialize Core Engine
     let mut engine = Engine::new();
-
-    // Register the current rules
-    engine.register_rule(Box::new(MissingPrivacyManifestRule));
-    engine.register_rule(Box::new(PrivacyManifestCompletenessRule));
-    engine.register_rule(Box::new(PrivacyManifestSdkCrossCheckRule));
-    engine.register_rule(Box::new(CameraUsageDescriptionRule));
-    engine.register_rule(Box::new(UsageDescriptionsRule));
-    engine.register_rule(Box::new(UsageDescriptionsValueRule));
-    engine.register_rule(Box::new(InfoPlistRequiredKeysRule));
-    engine.register_rule(Box::new(InfoPlistCapabilitiesRule));
-    engine.register_rule(Box::new(LSApplicationQueriesSchemesAuditRule));
-    engine.register_rule(Box::new(UIRequiredDeviceCapabilitiesAuditRule));
-    engine.register_rule(Box::new(InfoPlistVersionConsistencyRule));
-    engine.register_rule(Box::new(ExportComplianceRule));
-    engine.register_rule(Box::new(AtsAuditRule));
-    engine.register_rule(Box::new(AtsExceptionsGranularityRule));
-    engine.register_rule(Box::new(EntitlementsMismatchRule));
-    engine.register_rule(Box::new(EntitlementsProvisioningMismatchRule));
-    engine.register_rule(Box::new(NestedBundleDebugEntitlementRule));
-    engine.register_rule(Box::new(NestedBundleEntitlementsRule));
-    engine.register_rule(Box::new(BundleMetadataConsistencyRule));
-    engine.register_rule(Box::new(PrivateApiRule));
-    engine.register_rule(Box::new(EmbeddedCodeSignatureTeamRule));
-    engine.register_rule(Box::new(BundleResourceLeakageRule));
-    engine.register_rule(Box::new(ExtensionEntitlementsCompatibilityRule));
+    let profile = match args.profile {
+        Profile::Basic => ScanProfile::Basic,
+        Profile::Full => ScanProfile::Full,
+    };
+    register_rules(&mut engine, profile);
 
     // 4. Run the Engine
     let results = engine

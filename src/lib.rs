@@ -1,4 +1,5 @@
 pub mod core;
 pub mod parsers;
+pub mod profiles;
 pub mod report;
 pub mod rules;

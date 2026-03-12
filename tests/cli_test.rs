@@ -1,17 +1,7 @@
 use std::path::PathBuf;
 use verifyos_cli::core::engine::Engine;
-use verifyos_cli::rules::ats::AtsExceptionsGranularityRule;
-use verifyos_cli::rules::bundle_leakage::BundleResourceLeakageRule;
+use verifyos_cli::profiles::{register_rules, ScanProfile};
 use verifyos_cli::rules::core::{RuleStatus, Severity};
-use verifyos_cli::rules::entitlements::EntitlementsMismatchRule;
-use verifyos_cli::rules::extensions::ExtensionEntitlementsCompatibilityRule;
-use verifyos_cli::rules::info_plist::InfoPlistVersionConsistencyRule;
-use verifyos_cli::rules::info_plist::LSApplicationQueriesSchemesAuditRule;
-use verifyos_cli::rules::info_plist::UIRequiredDeviceCapabilitiesAuditRule;
-use verifyos_cli::rules::permissions::CameraUsageDescriptionRule;
-use verifyos_cli::rules::privacy::MissingPrivacyManifestRule;
-use verifyos_cli::rules::privacy_sdk::PrivacyManifestSdkCrossCheckRule;
-use verifyos_cli::rules::signing::EmbeddedCodeSignatureTeamRule;
 
 fn get_example_path(filename: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -21,17 +11,7 @@ fn get_example_path(filename: &str) -> PathBuf {
 
 fn create_engine() -> Engine {
     let mut engine = Engine::new();
-    engine.register_rule(Box::new(MissingPrivacyManifestRule));
-    engine.register_rule(Box::new(CameraUsageDescriptionRule));
-    engine.register_rule(Box::new(EntitlementsMismatchRule));
-    engine.register_rule(Box::new(EmbeddedCodeSignatureTeamRule));
-    engine.register_rule(Box::new(LSApplicationQueriesSchemesAuditRule));
-    engine.register_rule(Box::new(UIRequiredDeviceCapabilitiesAuditRule));
-    engine.register_rule(Box::new(AtsExceptionsGranularityRule));
-    engine.register_rule(Box::new(BundleResourceLeakageRule));
-    engine.register_rule(Box::new(InfoPlistVersionConsistencyRule));
-    engine.register_rule(Box::new(ExtensionEntitlementsCompatibilityRule));
-    engine.register_rule(Box::new(PrivacyManifestSdkCrossCheckRule));
+    register_rules(&mut engine, ScanProfile::Full);
     engine
 }
 

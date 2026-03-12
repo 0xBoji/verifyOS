@@ -1,7 +1,9 @@
 use std::fs;
 use std::path::PathBuf;
 use tempfile::tempdir;
+use verifyos_cli::core::engine::Engine;
 use verifyos_cli::parsers::plist_reader::InfoPlist;
+use verifyos_cli::profiles::{register_rules, ScanProfile};
 use verifyos_cli::rules::ats::AtsExceptionsGranularityRule;
 use verifyos_cli::rules::bundle_leakage::BundleResourceLeakageRule;
 use verifyos_cli::rules::core::{AppStoreRule, ArtifactContext, RuleStatus};
@@ -331,4 +333,24 @@ fn test_privacy_sdk_crosscheck_skips_without_manifest() {
     let rule = PrivacyManifestSdkCrossCheckRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
     assert_eq!(result.status, RuleStatus::Skip);
+}
+
+#[test]
+fn test_basic_profile_excludes_non_core_rules() {
+    let mut engine = Engine::new();
+    register_rules(&mut engine, ScanProfile::Basic);
+
+    let app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("examples")
+        .join("good_app.ipa");
+    let results = engine.run(&app_path).expect("Engine orchestrator failed");
+    let rule_ids: Vec<&str> = results.iter().map(|res| res.rule_id).collect();
+
+    assert!(rule_ids.contains(&"RULE_ATS_AUDIT"));
+    assert!(rule_ids.contains(&"RULE_USAGE_DESCRIPTIONS"));
+    assert!(rule_ids.contains(&"RULE_ENTITLEMENTS_MISMATCH"));
+
+    assert!(!rule_ids.contains(&"RULE_PRIVATE_API"));
+    assert!(!rule_ids.contains(&"RULE_BUNDLE_RESOURCE_LEAKAGE"));
+    assert!(!rule_ids.contains(&"RULE_PRIVACY_SDK_CROSSCHECK"));
 }

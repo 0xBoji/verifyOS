@@ -57,6 +57,20 @@ Run the CLI tool against your `.ipa` or `.app` path:
 voc --app path/to/YourApp.ipa
 ```
 
+### Profiles
+
+Run a smaller core ruleset or the full scan:
+
+```bash
+voc --app path/to/YourApp.ipa --profile basic
+```
+
+```bash
+voc --app path/to/YourApp.ipa --profile full
+```
+
+`full` is the default if `--profile` is omitted.
+
 ### Output Formats
 
 Table (default):
