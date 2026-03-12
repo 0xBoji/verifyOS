@@ -159,6 +159,10 @@ struct InitArgs {
     #[arg(long)]
     write_commands: bool,
 
+    /// Generate next-steps.sh inside --agent-pack-dir with follow-up commands
+    #[arg(long)]
+    shell_script: bool,
+
     /// Scan profile to use with --from-scan
     #[arg(long, value_enum, default_value = "full")]
     profile: Profile,
@@ -180,7 +184,34 @@ fn main() -> Result<()> {
         if let (Some(dir), Some(pack)) = (init.agent_pack_dir.as_deref(), agent_pack.as_ref()) {
             write_agent_pack(dir, pack, AgentPackFormat::Bundle)?;
         }
-        let command_hints = init.write_commands.then(|| CommandHints {
+        if init.shell_script {
+            let script_path = init
+                .agent_pack_dir
+                .as_deref()
+                .map(|dir| dir.join("next-steps.sh"))
+                .unwrap_or_else(|| PathBuf::from(".verifyos-agent").join("next-steps.sh"));
+            let command_hints = CommandHints {
+                app_path: init
+                    .from_scan
+                    .as_deref()
+                    .map(|path| path.display().to_string()),
+                baseline_path: init
+                    .baseline
+                    .as_deref()
+                    .map(|path| path.display().to_string()),
+                agent_pack_dir: Some(
+                    init.agent_pack_dir
+                        .as_deref()
+                        .unwrap_or_else(|| std::path::Path::new(".verifyos-agent"))
+                        .display()
+                        .to_string(),
+                ),
+                profile: Some(profile_key(init.profile)),
+                shell_script: true,
+            };
+            write_next_steps_script(&script_path, &command_hints)?;
+        }
+        let command_hints = (init.write_commands || init.shell_script).then(|| CommandHints {
             app_path: init
                 .from_scan
                 .as_deref()
@@ -194,6 +225,7 @@ fn main() -> Result<()> {
                 .as_deref()
                 .map(|path| path.display().to_string()),
             profile: Some(profile_key(init.profile)),
+            shell_script: init.shell_script,
         });
         write_agents_file(
             &init.path,
@@ -293,6 +325,77 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn write_next_steps_script(path: &std::path::Path, hints: &CommandHints) -> Result<()> {
+    let Some(app_path) = hints.app_path.as_deref() else {
+        return Err(miette::miette!(
+            "`--shell-script` requires `--from-scan <path>` so voc can build the follow-up commands"
+        ));
+    };
+
+    let profile = hints.profile.as_deref().unwrap_or("full");
+    let agent_pack_dir = hints.agent_pack_dir.as_deref().unwrap_or(".verifyos-agent");
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).into_diagnostic()?;
+    }
+
+    let mut script = String::new();
+    script.push_str("#!/usr/bin/env bash\nset -euo pipefail\n\n");
+    script.push_str(&format!(
+        "voc --app {} --profile {}\n",
+        shell_quote(app_path),
+        profile
+    ));
+    script.push_str(&format!(
+        "voc --app {} --profile {} --format json > report.json\n",
+        shell_quote(app_path),
+        profile
+    ));
+    script.push_str(&format!(
+        "voc --app {} --profile {} --agent-pack {} --agent-pack-format bundle\n",
+        shell_quote(app_path),
+        profile,
+        shell_quote(agent_pack_dir)
+    ));
+    if let Some(baseline) = hints.baseline_path.as_deref() {
+        script.push_str(&format!(
+            "voc init --from-scan {} --profile {} --baseline {} --agent-pack-dir {} --write-commands --shell-script\n",
+            shell_quote(app_path),
+            profile,
+            shell_quote(baseline),
+            shell_quote(agent_pack_dir)
+        ));
+    } else {
+        script.push_str(&format!(
+            "voc init --from-scan {} --profile {} --agent-pack-dir {} --write-commands --shell-script\n",
+            shell_quote(app_path),
+            profile,
+            shell_quote(agent_pack_dir)
+        ));
+    }
+
+    std::fs::write(path, script).into_diagnostic()?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(path).into_diagnostic()?.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(path, perms).into_diagnostic()?;
+    }
+    Ok(())
+}
+
+fn shell_quote(value: &str) -> String {
+    if value
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || "/._-".contains(ch))
+    {
+        value.to_string()
+    } else {
+        format!("'{}'", value.replace('\'', "'\"'\"'"))
+    }
 }
 
 fn output_format_key(value: OutputFormat) -> String {

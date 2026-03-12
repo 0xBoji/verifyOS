@@ -11,6 +11,7 @@ pub struct CommandHints {
     pub baseline_path: Option<String>,
     pub agent_pack_dir: Option<String>,
     pub profile: Option<String>,
+    pub shell_script: bool,
 }
 
 pub fn write_agents_file(
@@ -129,6 +130,12 @@ fn append_next_commands(out: &mut String, hints: &CommandHints) {
 
     out.push_str("### Next Commands\n\n");
     out.push_str("Use these exact commands after each patch batch:\n\n");
+    if hints.shell_script {
+        out.push_str(&format!(
+            "- Shortcut script: `{}/next-steps.sh`\n\n",
+            agent_pack_dir
+        ));
+    }
     out.push_str("```bash\n");
     out.push_str(&format!(
         "voc --app {} --profile {}\n",
@@ -341,6 +348,7 @@ Keep this
             baseline_path: Some("baseline.json".to_string()),
             agent_pack_dir: Some(".verifyos-agent".to_string()),
             profile: Some("basic".to_string()),
+            shell_script: true,
         };
 
         let block = build_managed_block(None, Some(Path::new(".verifyos-agent")), Some(&hints));
@@ -349,5 +357,6 @@ Keep this
         assert!(block.contains("voc --app examples/bad_app.ipa --profile basic"));
         assert!(block.contains("--baseline baseline.json"));
         assert!(block.contains("--write-commands"));
+        assert!(block.contains(".verifyos-agent/next-steps.sh"));
     }
 }

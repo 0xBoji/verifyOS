@@ -193,6 +193,12 @@ Also inject copy-paste follow-up commands for the next agent loop:
 voc init --from-scan path/to/YourApp.ipa --agent-pack-dir .verifyos-agent --write-commands
 ```
 
+Generate a runnable follow-up script too:
+
+```bash
+voc init --from-scan path/to/YourApp.ipa --agent-pack-dir .verifyos-agent --write-commands --shell-script
+```
+
 The generated block includes:
 - a recommended `voc` workflow for quick and release scans
 - AI agent fix-loop rules
@@ -200,6 +206,7 @@ The generated block includes:
 - an optional `Current Project Risks` section with priority order and suggested fix scopes from the latest scan
 - an optional pointer to `agent-pack.json` and `agent-pack.md` when `--agent-pack-dir` is used
 - an optional `Next Commands` section with exact re-scan and report refresh commands when `--write-commands` is used
+- an optional `.verifyos-agent/next-steps.sh` when `--shell-script` is used
 
 When `--baseline` is provided with `--from-scan`, the `Current Project Risks` section only keeps findings that are new or regressed compared with the older JSON report. That keeps the playbook focused on what changed in the current branch.
 

@@ -423,3 +423,40 @@ fn test_init_write_commands_injects_follow_up_commands() {
     assert!(contents.contains(&pack_dir.display().to_string()));
     assert!(contents.contains("agent-pack-format bundle"));
 }
+
+#[test]
+fn test_init_shell_script_writes_next_steps_and_mentions_it() {
+    let dir = tempdir().expect("temp dir");
+    let agents_path = dir.path().join("AGENTS.md");
+    let pack_dir = dir.path().join(".verifyos-agent");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "init",
+            "--path",
+            agents_path.to_str().expect("utf8 agents path"),
+            "--from-scan",
+            get_example_path("bad_app.ipa")
+                .to_str()
+                .expect("utf8 app path"),
+            "--agent-pack-dir",
+            pack_dir.to_str().expect("utf8 agent pack dir"),
+            "--shell-script",
+        ])
+        .output()
+        .expect("init shell script should run");
+
+    assert!(output.status.success());
+
+    let script_path = pack_dir.join("next-steps.sh");
+    assert!(script_path.exists());
+    let script = std::fs::read_to_string(&script_path).expect("script should exist");
+    assert!(script.contains("#!/usr/bin/env bash"));
+    assert!(script.contains("voc --app"));
+    assert!(script.contains("--agent-pack-format bundle"));
+    assert!(script.contains("--shell-script"));
+
+    let contents = std::fs::read_to_string(&agents_path).expect("agents file should exist");
+    assert!(contents.contains("### Next Commands"));
+    assert!(contents.contains("next-steps.sh"));
+}
