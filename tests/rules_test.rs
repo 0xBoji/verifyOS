@@ -239,6 +239,24 @@ fn test_artifact_context_caches_bundle_file_index() {
 }
 
 #[test]
+fn test_artifact_context_tracks_cache_hits_and_misses() {
+    let dir = tempdir().expect("temp dir");
+    let app_dir = dir.path().join("TestApp.app");
+    fs::create_dir_all(&app_dir).expect("create app dir");
+
+    let executable_path = app_dir.join("TestApp");
+    fs::write(&executable_path, b"AVCaptureDevice").expect("write executable");
+
+    let context = ArtifactContext::new(&app_dir, None);
+    let _ = context.usage_scan().expect("first usage scan");
+    let _ = context.usage_scan().expect("second usage scan");
+
+    let stats = context.cache_stats();
+    assert_eq!(stats.usage_scan.misses, 1);
+    assert_eq!(stats.usage_scan.hits, 1);
+}
+
+#[test]
 fn test_ats_granularity_fails_on_broad_exception() {
     let mut ats = plist::Dictionary::new();
     ats.insert(

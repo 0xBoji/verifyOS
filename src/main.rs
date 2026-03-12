@@ -124,7 +124,7 @@ fn main() -> Result<()> {
     pb.finish_with_message("Analysis complete!");
 
     // 6. Build report and apply baseline (if any)
-    let mut report = build_report(run.results, run.total_duration_ms);
+    let mut report = build_report(run.results, run.total_duration_ms, run.cache_stats);
     let mut suppressed = None;
     if let Some(path) = runtime.baseline {
         let baseline_raw = std::fs::read_to_string(path).into_diagnostic()?;

@@ -53,6 +53,26 @@ pub struct RuleReport {
     pub evidence: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CacheCounter {
+    pub hits: u64,
+    pub misses: u64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ArtifactCacheStats {
+    pub nested_bundles: CacheCounter,
+    pub usage_scan: CacheCounter,
+    pub private_api_scan: CacheCounter,
+    pub sdk_scan: CacheCounter,
+    pub capability_scan: CacheCounter,
+    pub signature_summary: CacheCounter,
+    pub bundle_plist: CacheCounter,
+    pub entitlements: CacheCounter,
+    pub provisioning_profile: CacheCounter,
+    pub bundle_files: CacheCounter,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum RuleCategory {
     Privacy,
@@ -80,6 +100,7 @@ pub struct ArtifactContext<'a> {
     entitlements_cache: RefCell<HashMap<PathBuf, Option<InfoPlist>>>,
     provisioning_profile_cache: RefCell<HashMap<PathBuf, Option<ProvisioningProfile>>>,
     bundle_file_cache: RefCell<Option<Vec<PathBuf>>>,
+    cache_stats: RefCell<ArtifactCacheStats>,
 }
 
 impl<'a> ArtifactContext<'a> {
@@ -100,14 +121,17 @@ impl<'a> ArtifactContext<'a> {
             entitlements_cache: RefCell::new(HashMap::new()),
             provisioning_profile_cache: RefCell::new(HashMap::new()),
             bundle_file_cache: RefCell::new(None),
+            cache_stats: RefCell::new(ArtifactCacheStats::default()),
         }
     }
 
     pub fn nested_bundles(&self) -> Result<Vec<BundleTarget>, BundleScanError> {
         if let Some(bundles) = self.nested_bundles_cache.borrow().as_ref() {
+            self.cache_stats.borrow_mut().nested_bundles.hits += 1;
             return Ok(bundles.clone());
         }
 
+        self.cache_stats.borrow_mut().nested_bundles.misses += 1;
         let bundles = find_nested_bundles(self.app_bundle_path)?;
         *self.nested_bundles_cache.borrow_mut() = Some(bundles.clone());
         Ok(bundles)
@@ -115,9 +139,11 @@ impl<'a> ArtifactContext<'a> {
 
     pub fn usage_scan(&self) -> Result<UsageScan, UsageScanError> {
         if let Some(scan) = self.usage_scan_cache.borrow().as_ref() {
+            self.cache_stats.borrow_mut().usage_scan.hits += 1;
             return Ok(scan.clone());
         }
 
+        self.cache_stats.borrow_mut().usage_scan.misses += 1;
         let scan = scan_usage_from_app_bundle(self.app_bundle_path)?;
         *self.usage_scan_cache.borrow_mut() = Some(scan.clone());
         Ok(scan)
@@ -125,9 +151,11 @@ impl<'a> ArtifactContext<'a> {
 
     pub fn private_api_scan(&self) -> Result<PrivateApiScan, UsageScanError> {
         if let Some(scan) = self.private_api_scan_cache.borrow().as_ref() {
+            self.cache_stats.borrow_mut().private_api_scan.hits += 1;
             return Ok(scan.clone());
         }
 
+        self.cache_stats.borrow_mut().private_api_scan.misses += 1;
         let scan = scan_private_api_from_app_bundle(self.app_bundle_path)?;
         *self.private_api_scan_cache.borrow_mut() = Some(scan.clone());
         Ok(scan)
@@ -135,9 +163,11 @@ impl<'a> ArtifactContext<'a> {
 
     pub fn sdk_scan(&self) -> Result<SdkScan, UsageScanError> {
         if let Some(scan) = self.sdk_scan_cache.borrow().as_ref() {
+            self.cache_stats.borrow_mut().sdk_scan.hits += 1;
             return Ok(scan.clone());
         }
 
+        self.cache_stats.borrow_mut().sdk_scan.misses += 1;
         let scan = scan_sdks_from_app_bundle(self.app_bundle_path)?;
         *self.sdk_scan_cache.borrow_mut() = Some(scan.clone());
         Ok(scan)
@@ -145,9 +175,11 @@ impl<'a> ArtifactContext<'a> {
 
     pub fn capability_scan(&self) -> Result<CapabilityScan, UsageScanError> {
         if let Some(scan) = self.capability_scan_cache.borrow().as_ref() {
+            self.cache_stats.borrow_mut().capability_scan.hits += 1;
             return Ok(scan.clone());
         }
 
+        self.cache_stats.borrow_mut().capability_scan.misses += 1;
         let scan = scan_capabilities_from_app_bundle(self.app_bundle_path)?;
         *self.capability_scan_cache.borrow_mut() = Some(scan.clone());
         Ok(scan)
@@ -159,9 +191,11 @@ impl<'a> ArtifactContext<'a> {
     ) -> Result<MachOSignatureSummary, MachOError> {
         let executable_path = executable_path.as_ref().to_path_buf();
         if let Some(summary) = self.signature_summary_cache.borrow().get(&executable_path) {
+            self.cache_stats.borrow_mut().signature_summary.hits += 1;
             return Ok(summary.clone());
         }
 
+        self.cache_stats.borrow_mut().signature_summary.misses += 1;
         let summary = read_macho_signature_summary(&executable_path)?;
         self.signature_summary_cache
             .borrow_mut()
@@ -184,9 +218,11 @@ impl<'a> ArtifactContext<'a> {
 
     pub fn bundle_info_plist(&self, bundle_path: &Path) -> Result<Option<InfoPlist>, PlistError> {
         if let Some(plist) = self.bundle_plist_cache.borrow().get(bundle_path) {
+            self.cache_stats.borrow_mut().bundle_plist.hits += 1;
             return Ok(plist.clone());
         }
 
+        self.cache_stats.borrow_mut().bundle_plist.misses += 1;
         let plist_path = bundle_path.join("Info.plist");
         let plist = if plist_path.exists() {
             Some(InfoPlist::from_file(&plist_path)?)
@@ -210,9 +246,11 @@ impl<'a> ArtifactContext<'a> {
         };
 
         if let Some(entitlements) = self.entitlements_cache.borrow().get(&executable_path) {
+            self.cache_stats.borrow_mut().entitlements.hits += 1;
             return Ok(entitlements.clone());
         }
 
+        self.cache_stats.borrow_mut().entitlements.misses += 1;
         let macho = MachOExecutable::from_file(&executable_path)
             .map_err(crate::rules::entitlements::EntitlementsError::MachO)
             .map_err(RuleError::Entitlements)?;
@@ -241,9 +279,11 @@ impl<'a> ArtifactContext<'a> {
             .borrow()
             .get(&provisioning_path)
         {
+            self.cache_stats.borrow_mut().provisioning_profile.hits += 1;
             return Ok(profile.clone());
         }
 
+        self.cache_stats.borrow_mut().provisioning_profile.misses += 1;
         let profile = if provisioning_path.exists() {
             Some(ProvisioningProfile::from_embedded_file(&provisioning_path)?)
         } else {
@@ -258,9 +298,11 @@ impl<'a> ArtifactContext<'a> {
 
     pub fn bundle_file_paths(&self) -> Vec<PathBuf> {
         if let Some(paths) = self.bundle_file_cache.borrow().as_ref() {
+            self.cache_stats.borrow_mut().bundle_files.hits += 1;
             return paths.clone();
         }
 
+        self.cache_stats.borrow_mut().bundle_files.misses += 1;
         let mut files = Vec::new();
         collect_bundle_files(self.app_bundle_path, &mut files);
         *self.bundle_file_cache.borrow_mut() = Some(files.clone());
@@ -274,6 +316,10 @@ impl<'a> ArtifactContext<'a> {
                 .map(|rel| rel == Path::new(relative_path))
                 .unwrap_or(false)
         })
+    }
+
+    pub fn cache_stats(&self) -> ArtifactCacheStats {
+        self.cache_stats.borrow().clone()
     }
 }
 

@@ -1,7 +1,8 @@
 use crate::parsers::plist_reader::{InfoPlist, PlistError};
 use crate::parsers::zip_extractor::{extract_ipa, ExtractionError};
 use crate::rules::core::{
-    AppStoreRule, ArtifactContext, RuleCategory, RuleError, RuleReport, Severity,
+    AppStoreRule, ArtifactCacheStats, ArtifactContext, RuleCategory, RuleError, RuleReport,
+    Severity,
 };
 use std::path::Path;
 use std::time::Instant;
@@ -29,6 +30,7 @@ pub struct EngineResult {
 pub struct EngineRun {
     pub results: Vec<EngineResult>,
     pub total_duration_ms: u128,
+    pub cache_stats: ArtifactCacheStats,
 }
 
 pub struct Engine {
@@ -81,6 +83,7 @@ impl Engine {
         Ok(EngineRun {
             results,
             total_duration_ms: run_started.elapsed().as_millis(),
+            cache_stats: context.cache_stats(),
         })
     }
 }

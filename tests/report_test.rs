@@ -2,13 +2,20 @@ use verifyos_cli::report::{
     render_markdown, render_table, should_exit_with_failure, top_slow_rules, FailOn, ReportData,
     ReportItem,
 };
-use verifyos_cli::rules::core::{RuleCategory, RuleStatus, Severity};
+use verifyos_cli::rules::core::{
+    ArtifactCacheStats, CacheCounter, RuleCategory, RuleStatus, Severity,
+};
 
 fn sample_report(items: Vec<ReportItem>) -> ReportData {
     ReportData {
         ruleset_version: "0.1.0".to_string(),
         generated_at_unix: 0,
         total_duration_ms: 42,
+        cache_stats: ArtifactCacheStats {
+            usage_scan: CacheCounter { hits: 2, misses: 1 },
+            bundle_plist: CacheCounter { hits: 1, misses: 1 },
+            ..ArtifactCacheStats::default()
+        },
         results: items,
     }
 }
@@ -68,6 +75,7 @@ fn render_table_shows_timings_when_enabled() {
     assert!(output.contains("Time"));
     assert!(output.contains("Total scan time: 42 ms"));
     assert!(output.contains("Slowest rules: RULE_SAMPLE (7 ms)"));
+    assert!(output.contains("Cache activity: usage_scan h/m=2/1, bundle_plist h/m=1/1"));
 }
 
 #[test]
@@ -77,6 +85,8 @@ fn render_markdown_shows_timings_when_enabled() {
 
     assert!(output.contains("- Total scan time: 42 ms"));
     assert!(output.contains("- Slowest rules:"));
+    assert!(output.contains("- Cache activity:"));
+    assert!(output.contains("  - usage_scan h/m=2/1"));
     assert!(output.contains("  - Time: 7 ms"));
 }
 

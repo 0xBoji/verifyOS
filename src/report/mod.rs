@@ -1,5 +1,7 @@
 use crate::core::engine::EngineResult;
-use crate::rules::core::{RuleCategory, RuleStatus, Severity, RULESET_VERSION};
+use crate::rules::core::{
+    ArtifactCacheStats, CacheCounter, RuleCategory, RuleStatus, Severity, RULESET_VERSION,
+};
 use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::presets::UTF8_FULL;
 use comfy_table::{Cell, Color, Table};
@@ -13,6 +15,7 @@ pub struct ReportData {
     pub ruleset_version: String,
     pub generated_at_unix: u64,
     pub total_duration_ms: u128,
+    pub cache_stats: ArtifactCacheStats,
     pub results: Vec<ReportItem>,
 }
 
@@ -48,7 +51,11 @@ pub enum FailOn {
     Warning,
 }
 
-pub fn build_report(results: Vec<EngineResult>, total_duration_ms: u128) -> ReportData {
+pub fn build_report(
+    results: Vec<EngineResult>,
+    total_duration_ms: u128,
+    cache_stats: ArtifactCacheStats,
+) -> ReportData {
     let generated_at_unix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -83,6 +90,7 @@ pub fn build_report(results: Vec<EngineResult>, total_duration_ms: u128) -> Repo
         ruleset_version: RULESET_VERSION.to_string(),
         generated_at_unix,
         total_duration_ms,
+        cache_stats,
         results: items,
     }
 }
@@ -195,9 +203,10 @@ pub fn render_table(report: &ReportData, show_timings: bool) -> String {
 
     if show_timings {
         let slow_rules = format_slow_rules(top_slow_rules(report, 3));
+        let cache_summary = format_cache_stats(&report.cache_stats);
         format!(
-            "{}\nTotal scan time: {} ms{}\n",
-            table, report.total_duration_ms, slow_rules
+            "{}\nTotal scan time: {} ms{}{}\n",
+            table, report.total_duration_ms, slow_rules, cache_summary
         )
     } else {
         format!("{}", table)
@@ -314,6 +323,13 @@ pub fn render_markdown(
                 ));
             }
         }
+        let cache_lines = markdown_cache_stats(&report.cache_stats);
+        if !cache_lines.is_empty() {
+            out.push_str("- Cache activity:\n");
+            for line in cache_lines {
+                out.push_str(&format!("  - {}\n", line));
+            }
+        }
     }
     if let Some(suppressed) = suppressed {
         out.push_str(&format!("- Baseline suppressed: {suppressed}\n"));
@@ -367,4 +383,38 @@ fn format_slow_rules(items: Vec<SlowRule>) -> String {
         .map(|item| format!("{} ({} ms)", item.rule_id, item.duration_ms))
         .collect();
     format!("\nSlowest rules: {}", parts.join(", "))
+}
+
+fn format_cache_stats(stats: &ArtifactCacheStats) -> String {
+    let lines = markdown_cache_stats(stats);
+    if lines.is_empty() {
+        return String::new();
+    }
+
+    format!("\nCache activity: {}", lines.join(", "))
+}
+
+fn markdown_cache_stats(stats: &ArtifactCacheStats) -> Vec<String> {
+    let counters = [
+        ("nested_bundles", stats.nested_bundles),
+        ("usage_scan", stats.usage_scan),
+        ("private_api_scan", stats.private_api_scan),
+        ("sdk_scan", stats.sdk_scan),
+        ("capability_scan", stats.capability_scan),
+        ("signature_summary", stats.signature_summary),
+        ("bundle_plist", stats.bundle_plist),
+        ("entitlements", stats.entitlements),
+        ("provisioning_profile", stats.provisioning_profile),
+        ("bundle_files", stats.bundle_files),
+    ];
+
+    counters
+        .into_iter()
+        .filter(|(_, counter)| counter.hits > 0 || counter.misses > 0)
+        .map(|(name, counter)| format_cache_counter(name, counter))
+        .collect()
+}
+
+fn format_cache_counter(name: &str, counter: CacheCounter) -> String {
+    format!("{name} h/m={}/{}", counter.hits, counter.misses)
 }

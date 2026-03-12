@@ -154,6 +154,7 @@ voc --app path/to/YourApp.ipa --timings
 
 When enabled, the table output includes per-rule execution time and the total scan time. JSON and Markdown reports also carry timing data for automation and profiling.
 The timing summary also highlights the slowest rules so you can spot hot paths quickly.
+It also includes cache hit/miss activity for artifact scans so we can tell whether a slow run is coming from repeated IO or genuinely expensive rules.
 
 ### Baseline Mode
 
