@@ -2,6 +2,7 @@ use crate::core::engine::Engine;
 use crate::rules::ats::{AtsAuditRule, AtsExceptionsGranularityRule};
 use crate::rules::bundle_leakage::BundleResourceLeakageRule;
 use crate::rules::bundle_metadata::BundleMetadataConsistencyRule;
+use crate::rules::core::AppStoreRule;
 use crate::rules::entitlements::{EntitlementsMismatchRule, EntitlementsProvisioningMismatchRule};
 use crate::rules::export_compliance::ExportComplianceRule;
 use crate::rules::extensions::ExtensionEntitlementsCompatibilityRule;
@@ -16,6 +17,7 @@ use crate::rules::privacy_manifest::PrivacyManifestCompletenessRule;
 use crate::rules::privacy_sdk::PrivacyManifestSdkCrossCheckRule;
 use crate::rules::private_api::PrivateApiRule;
 use crate::rules::signing::EmbeddedCodeSignatureTeamRule;
+use std::collections::HashSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScanProfile {
@@ -23,45 +25,86 @@ pub enum ScanProfile {
     Full,
 }
 
-pub fn register_rules(engine: &mut Engine, profile: ScanProfile) {
-    match profile {
-        ScanProfile::Basic => register_basic_rules(engine),
-        ScanProfile::Full => register_full_rules(engine),
+#[derive(Debug, Clone, Default)]
+pub struct RuleSelection {
+    pub include: HashSet<String>,
+    pub exclude: HashSet<String>,
+}
+
+impl RuleSelection {
+    pub fn allows(&self, rule_id: &str) -> bool {
+        let normalized = normalize_rule_id(rule_id);
+        let included = self.include.is_empty() || self.include.contains(&normalized);
+        let excluded = self.exclude.contains(&normalized);
+        included && !excluded
     }
 }
 
-fn register_basic_rules(engine: &mut Engine) {
-    engine.register_rule(Box::new(MissingPrivacyManifestRule));
-    engine.register_rule(Box::new(UsageDescriptionsRule));
-    engine.register_rule(Box::new(UsageDescriptionsValueRule));
-    engine.register_rule(Box::new(CameraUsageDescriptionRule));
-    engine.register_rule(Box::new(AtsAuditRule));
-    engine.register_rule(Box::new(AtsExceptionsGranularityRule));
-    engine.register_rule(Box::new(EntitlementsMismatchRule));
-    engine.register_rule(Box::new(EntitlementsProvisioningMismatchRule));
-    engine.register_rule(Box::new(EmbeddedCodeSignatureTeamRule));
+pub fn register_rules(engine: &mut Engine, profile: ScanProfile, selection: &RuleSelection) {
+    for rule in profile_rules(profile) {
+        if selection.allows(rule.id()) {
+            engine.register_rule(rule);
+        }
+    }
 }
 
-fn register_full_rules(engine: &mut Engine) {
-    engine.register_rule(Box::new(MissingPrivacyManifestRule));
-    engine.register_rule(Box::new(PrivacyManifestCompletenessRule));
-    engine.register_rule(Box::new(PrivacyManifestSdkCrossCheckRule));
-    engine.register_rule(Box::new(CameraUsageDescriptionRule));
-    engine.register_rule(Box::new(UsageDescriptionsRule));
-    engine.register_rule(Box::new(UsageDescriptionsValueRule));
-    engine.register_rule(Box::new(InfoPlistRequiredKeysRule));
-    engine.register_rule(Box::new(InfoPlistCapabilitiesRule));
-    engine.register_rule(Box::new(LSApplicationQueriesSchemesAuditRule));
-    engine.register_rule(Box::new(UIRequiredDeviceCapabilitiesAuditRule));
-    engine.register_rule(Box::new(InfoPlistVersionConsistencyRule));
-    engine.register_rule(Box::new(ExportComplianceRule));
-    engine.register_rule(Box::new(AtsAuditRule));
-    engine.register_rule(Box::new(AtsExceptionsGranularityRule));
-    engine.register_rule(Box::new(EntitlementsMismatchRule));
-    engine.register_rule(Box::new(EntitlementsProvisioningMismatchRule));
-    engine.register_rule(Box::new(BundleMetadataConsistencyRule));
-    engine.register_rule(Box::new(BundleResourceLeakageRule));
-    engine.register_rule(Box::new(ExtensionEntitlementsCompatibilityRule));
-    engine.register_rule(Box::new(PrivateApiRule));
-    engine.register_rule(Box::new(EmbeddedCodeSignatureTeamRule));
+pub fn available_rule_ids(profile: ScanProfile) -> Vec<String> {
+    let mut ids: Vec<String> = profile_rules(profile)
+        .into_iter()
+        .map(|rule| normalize_rule_id(rule.id()))
+        .collect();
+    ids.sort();
+    ids.dedup();
+    ids
+}
+
+pub fn normalize_rule_id(rule_id: &str) -> String {
+    rule_id.trim().to_ascii_uppercase()
+}
+
+fn profile_rules(profile: ScanProfile) -> Vec<Box<dyn AppStoreRule>> {
+    match profile {
+        ScanProfile::Basic => basic_rules(),
+        ScanProfile::Full => full_rules(),
+    }
+}
+
+fn basic_rules() -> Vec<Box<dyn AppStoreRule>> {
+    vec![
+        Box::new(MissingPrivacyManifestRule),
+        Box::new(UsageDescriptionsRule),
+        Box::new(UsageDescriptionsValueRule),
+        Box::new(CameraUsageDescriptionRule),
+        Box::new(AtsAuditRule),
+        Box::new(AtsExceptionsGranularityRule),
+        Box::new(EntitlementsMismatchRule),
+        Box::new(EntitlementsProvisioningMismatchRule),
+        Box::new(EmbeddedCodeSignatureTeamRule),
+    ]
+}
+
+fn full_rules() -> Vec<Box<dyn AppStoreRule>> {
+    vec![
+        Box::new(MissingPrivacyManifestRule),
+        Box::new(PrivacyManifestCompletenessRule),
+        Box::new(PrivacyManifestSdkCrossCheckRule),
+        Box::new(CameraUsageDescriptionRule),
+        Box::new(UsageDescriptionsRule),
+        Box::new(UsageDescriptionsValueRule),
+        Box::new(InfoPlistRequiredKeysRule),
+        Box::new(InfoPlistCapabilitiesRule),
+        Box::new(LSApplicationQueriesSchemesAuditRule),
+        Box::new(UIRequiredDeviceCapabilitiesAuditRule),
+        Box::new(InfoPlistVersionConsistencyRule),
+        Box::new(ExportComplianceRule),
+        Box::new(AtsAuditRule),
+        Box::new(AtsExceptionsGranularityRule),
+        Box::new(EntitlementsMismatchRule),
+        Box::new(EntitlementsProvisioningMismatchRule),
+        Box::new(BundleMetadataConsistencyRule),
+        Box::new(BundleResourceLeakageRule),
+        Box::new(ExtensionEntitlementsCompatibilityRule),
+        Box::new(PrivateApiRule),
+        Box::new(EmbeddedCodeSignatureTeamRule),
+    ]
 }

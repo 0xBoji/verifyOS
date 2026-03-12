@@ -1,10 +1,13 @@
 use clap::{Parser, ValueEnum};
 use indicatif::{ProgressBar, ProgressStyle};
 use miette::{IntoDiagnostic, Result};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use verifyos_cli::core::engine::Engine;
-use verifyos_cli::profiles::{register_rules, ScanProfile};
+use verifyos_cli::profiles::{
+    available_rule_ids, normalize_rule_id, register_rules, RuleSelection, ScanProfile,
+};
 use verifyos_cli::report::{
     apply_baseline, build_report, render_json, render_markdown, render_sarif, render_table,
     should_exit_with_failure, FailOn,
@@ -56,6 +59,14 @@ struct Args {
     /// Exit with code 1 when findings reach this severity threshold
     #[arg(long, value_enum, default_value_t = FailOnLevel::Error)]
     fail_on: FailOnLevel,
+
+    /// Only run the listed rule IDs (repeat or comma-separate)
+    #[arg(long, value_delimiter = ',', num_args = 1..)]
+    include: Vec<String>,
+
+    /// Skip the listed rule IDs (repeat or comma-separate)
+    #[arg(long, value_delimiter = ',', num_args = 1..)]
+    exclude: Vec<String>,
 }
 
 fn main() -> Result<()> {
@@ -84,7 +95,8 @@ fn main() -> Result<()> {
         FailOnLevel::Error => FailOn::Error,
         FailOnLevel::Warning => FailOn::Warning,
     };
-    register_rules(&mut engine, profile);
+    let selection = build_rule_selection(profile, &args.include, &args.exclude)?;
+    register_rules(&mut engine, profile, &selection);
 
     // 4. Run the Engine
     let results = engine
@@ -123,4 +135,40 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn build_rule_selection(
+    profile: ScanProfile,
+    include: &[String],
+    exclude: &[String],
+) -> Result<RuleSelection> {
+    let available: HashSet<String> = available_rule_ids(profile).into_iter().collect();
+    let include = normalize_requested_rules(include, &available, "--include")?;
+    let exclude = normalize_requested_rules(exclude, &available, "--exclude")?;
+
+    Ok(RuleSelection { include, exclude })
+}
+
+fn normalize_requested_rules(
+    values: &[String],
+    available: &HashSet<String>,
+    flag_name: &str,
+) -> Result<HashSet<String>> {
+    let mut normalized = HashSet::new();
+
+    for value in values {
+        let rule_id = normalize_rule_id(value);
+        if !available.contains(&rule_id) {
+            let mut available_ids: Vec<&str> = available.iter().map(String::as_str).collect();
+            available_ids.sort_unstable();
+            return Err(miette::miette!(
+                "{flag_name} contains unknown rule ID `{}`. Available rule IDs for this profile: {}",
+                value,
+                available_ids.join(", ")
+            ));
+        }
+        normalized.insert(rule_id);
+    }
+
+    Ok(normalized)
 }

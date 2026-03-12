@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use tempfile::tempdir;
 use verifyos_cli::core::engine::Engine;
 use verifyos_cli::parsers::plist_reader::InfoPlist;
-use verifyos_cli::profiles::{register_rules, ScanProfile};
+use verifyos_cli::profiles::{normalize_rule_id, register_rules, RuleSelection, ScanProfile};
 use verifyos_cli::rules::ats::AtsExceptionsGranularityRule;
 use verifyos_cli::rules::bundle_leakage::BundleResourceLeakageRule;
 use verifyos_cli::rules::core::{AppStoreRule, ArtifactContext, RuleStatus};
@@ -338,7 +338,7 @@ fn test_privacy_sdk_crosscheck_skips_without_manifest() {
 #[test]
 fn test_basic_profile_excludes_non_core_rules() {
     let mut engine = Engine::new();
-    register_rules(&mut engine, ScanProfile::Basic);
+    register_rules(&mut engine, ScanProfile::Basic, &RuleSelection::default());
 
     let app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("examples")
@@ -353,4 +353,43 @@ fn test_basic_profile_excludes_non_core_rules() {
     assert!(!rule_ids.contains(&"RULE_PRIVATE_API"));
     assert!(!rule_ids.contains(&"RULE_BUNDLE_RESOURCE_LEAKAGE"));
     assert!(!rule_ids.contains(&"RULE_PRIVACY_SDK_CROSSCHECK"));
+}
+
+#[test]
+fn test_include_rule_selection_keeps_only_requested_rules() {
+    let mut engine = Engine::new();
+    let mut selection = RuleSelection::default();
+    selection
+        .include
+        .insert(normalize_rule_id("RULE_PRIVATE_API"));
+
+    register_rules(&mut engine, ScanProfile::Full, &selection);
+
+    let app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("examples")
+        .join("good_app.ipa");
+    let results = engine.run(&app_path).expect("Engine orchestrator failed");
+    let rule_ids: Vec<&str> = results.iter().map(|res| res.rule_id).collect();
+
+    assert_eq!(rule_ids, vec!["RULE_PRIVATE_API"]);
+}
+
+#[test]
+fn test_exclude_rule_selection_removes_requested_rule() {
+    let mut engine = Engine::new();
+    let mut selection = RuleSelection::default();
+    selection
+        .exclude
+        .insert(normalize_rule_id("RULE_PRIVATE_API"));
+
+    register_rules(&mut engine, ScanProfile::Full, &selection);
+
+    let app_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("examples")
+        .join("good_app.ipa");
+    let results = engine.run(&app_path).expect("Engine orchestrator failed");
+    let rule_ids: Vec<&str> = results.iter().map(|res| res.rule_id).collect();
+
+    assert!(!rule_ids.contains(&"RULE_PRIVATE_API"));
+    assert!(rule_ids.contains(&"RULE_ATS_AUDIT"));
 }

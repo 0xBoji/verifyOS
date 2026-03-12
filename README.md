@@ -85,6 +85,20 @@ voc --app path/to/YourApp.ipa --fail-on warning
 
 `error` is the default if `--fail-on` is omitted.
 
+### Rule selectors
+
+Run only specific rules or exclude noisy ones by rule ID:
+
+```bash
+voc --app path/to/YourApp.ipa --include RULE_PRIVATE_API,RULE_ATS_AUDIT
+```
+
+```bash
+voc --app path/to/YourApp.ipa --exclude RULE_PRIVATE_API
+```
+
+Selectors apply after the chosen `--profile`, so `basic` plus `--include` can narrow the set even further.
+
 ### Output Formats
 
 Table (default):

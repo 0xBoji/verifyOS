@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use verifyos_cli::core::engine::Engine;
-use verifyos_cli::profiles::{register_rules, ScanProfile};
+use verifyos_cli::profiles::{register_rules, RuleSelection, ScanProfile};
 use verifyos_cli::rules::core::{RuleStatus, Severity};
 
 fn get_example_path(filename: &str) -> PathBuf {
@@ -11,7 +11,7 @@ fn get_example_path(filename: &str) -> PathBuf {
 
 fn create_engine() -> Engine {
     let mut engine = Engine::new();
-    register_rules(&mut engine, ScanProfile::Full);
+    register_rules(&mut engine, ScanProfile::Full, &RuleSelection::default());
     engine
 }
 
