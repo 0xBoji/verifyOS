@@ -1,5 +1,6 @@
 use verifyos_cli::report::{
-    render_markdown, render_table, should_exit_with_failure, FailOn, ReportData, ReportItem,
+    render_markdown, render_table, should_exit_with_failure, top_slow_rules, FailOn, ReportData,
+    ReportItem,
 };
 use verifyos_cli::rules::core::{RuleCategory, RuleStatus, Severity};
 
@@ -66,6 +67,7 @@ fn render_table_shows_timings_when_enabled() {
 
     assert!(output.contains("Time"));
     assert!(output.contains("Total scan time: 42 ms"));
+    assert!(output.contains("Slowest rules: RULE_SAMPLE (7 ms)"));
 }
 
 #[test]
@@ -74,5 +76,31 @@ fn render_markdown_shows_timings_when_enabled() {
     let output = render_markdown(&report, Some(1), true);
 
     assert!(output.contains("- Total scan time: 42 ms"));
+    assert!(output.contains("- Slowest rules:"));
     assert!(output.contains("  - Time: 7 ms"));
+}
+
+#[test]
+fn top_slow_rules_returns_descending_breakdown() {
+    let mut slow = sample_item(Severity::Warning, RuleStatus::Pass);
+    slow.rule_id = "RULE_SLOW".to_string();
+    slow.rule_name = "Slow Rule".to_string();
+    slow.duration_ms = 25;
+
+    let mut fast = sample_item(Severity::Info, RuleStatus::Pass);
+    fast.rule_id = "RULE_FAST".to_string();
+    fast.rule_name = "Fast Rule".to_string();
+    fast.duration_ms = 3;
+
+    let mut medium = sample_item(Severity::Error, RuleStatus::Fail);
+    medium.rule_id = "RULE_MEDIUM".to_string();
+    medium.rule_name = "Medium Rule".to_string();
+    medium.duration_ms = 10;
+
+    let report = sample_report(vec![medium, fast, slow]);
+    let breakdown = top_slow_rules(&report, 2);
+
+    assert_eq!(breakdown.len(), 2);
+    assert_eq!(breakdown[0].rule_id, "RULE_SLOW");
+    assert_eq!(breakdown[1].rule_id, "RULE_MEDIUM");
 }

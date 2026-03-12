@@ -29,6 +29,13 @@ pub struct ReportItem {
     pub duration_ms: u128,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SlowRule {
+    pub rule_id: String,
+    pub rule_name: String,
+    pub duration_ms: u128,
+}
+
 #[derive(Debug, Clone)]
 pub struct BaselineSummary {
     pub suppressed: usize,
@@ -126,6 +133,25 @@ pub fn should_exit_with_failure(report: &ReportData, fail_on: FailOn) -> bool {
     }
 }
 
+pub fn top_slow_rules(report: &ReportData, limit: usize) -> Vec<SlowRule> {
+    let mut items: Vec<SlowRule> = report
+        .results
+        .iter()
+        .map(|item| SlowRule {
+            rule_id: item.rule_id.clone(),
+            rule_name: item.rule_name.clone(),
+            duration_ms: item.duration_ms,
+        })
+        .collect();
+    items.sort_by(|a, b| {
+        b.duration_ms
+            .cmp(&a.duration_ms)
+            .then_with(|| a.rule_id.cmp(&b.rule_id))
+    });
+    items.truncate(limit);
+    items
+}
+
 pub fn render_table(report: &ReportData, show_timings: bool) -> String {
     let mut table = Table::new();
     let mut header = vec!["Rule", "Category", "Severity", "Status", "Message"];
@@ -168,9 +194,10 @@ pub fn render_table(report: &ReportData, show_timings: bool) -> String {
     }
 
     if show_timings {
+        let slow_rules = format_slow_rules(top_slow_rules(report, 3));
         format!(
-            "{}\nTotal scan time: {} ms",
-            table, report.total_duration_ms
+            "{}\nTotal scan time: {} ms{}\n",
+            table, report.total_duration_ms, slow_rules
         )
     } else {
         format!("{}", table)
@@ -277,6 +304,16 @@ pub fn render_markdown(
             "- Total scan time: {} ms\n",
             report.total_duration_ms
         ));
+        let slow_rules = top_slow_rules(report, 3);
+        if !slow_rules.is_empty() {
+            out.push_str("- Slowest rules:\n");
+            for item in &slow_rules {
+                out.push_str(&format!(
+                    "  - {} (`{}`): {} ms\n",
+                    item.rule_name, item.rule_id, item.duration_ms
+                ));
+            }
+        }
     }
     if let Some(suppressed) = suppressed {
         out.push_str(&format!("- Baseline suppressed: {suppressed}\n"));
@@ -318,4 +355,16 @@ pub fn render_markdown(
     }
 
     out
+}
+
+fn format_slow_rules(items: Vec<SlowRule>) -> String {
+    if items.is_empty() {
+        return String::new();
+    }
+
+    let parts: Vec<String> = items
+        .into_iter()
+        .map(|item| format!("{} ({} ms)", item.rule_id, item.duration_ms))
+        .collect();
+    format!("\nSlowest rules: {}", parts.join(", "))
 }

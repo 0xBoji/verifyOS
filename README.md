@@ -153,6 +153,7 @@ voc --app path/to/YourApp.ipa --timings
 ```
 
 When enabled, the table output includes per-rule execution time and the total scan time. JSON and Markdown reports also carry timing data for automation and profiling.
+The timing summary also highlights the slowest rules so you can spot hot paths quickly.
 
 ### Baseline Mode
 
