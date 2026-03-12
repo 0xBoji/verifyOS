@@ -4,6 +4,7 @@ use miette::{IntoDiagnostic, Result};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use verifyos_cli::config::{load_file_config, resolve_runtime_config, CliOverrides};
 use verifyos_cli::core::engine::Engine;
 use verifyos_cli::profiles::{
     available_rule_ids, normalize_rule_id, register_rules, RuleSelection, ScanProfile,
@@ -40,9 +41,13 @@ struct Args {
     #[arg(short, long)]
     app: PathBuf,
 
+    /// Optional config file path. If omitted, verifyos.toml is used when present
+    #[arg(long)]
+    config: Option<PathBuf>,
+
     /// Output format: table, json, sarif
-    #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
-    format: OutputFormat,
+    #[arg(long, value_enum)]
+    format: Option<OutputFormat>,
 
     /// Baseline JSON file to suppress existing findings
     #[arg(long)]
@@ -53,12 +58,12 @@ struct Args {
     md_out: Option<PathBuf>,
 
     /// Scan profile: basic or full
-    #[arg(long, value_enum, default_value_t = Profile::Full)]
-    profile: Profile,
+    #[arg(long, value_enum)]
+    profile: Option<Profile>,
 
     /// Exit with code 1 when findings reach this severity threshold
-    #[arg(long, value_enum, default_value_t = FailOnLevel::Error)]
-    fail_on: FailOnLevel,
+    #[arg(long, value_enum)]
+    fail_on: Option<FailOnLevel>,
 
     /// Only run the listed rule IDs (repeat or comma-separate)
     #[arg(long, value_delimiter = ',', num_args = 1..)]
@@ -72,6 +77,22 @@ struct Args {
 fn main() -> Result<()> {
     // 1. Parse CLI arguments
     let args = Args::parse();
+    let file_config = load_file_config(args.config.as_deref())?;
+    let runtime = resolve_runtime_config(
+        file_config,
+        CliOverrides {
+            format: args.format.map(output_format_key),
+            baseline: args.baseline.clone(),
+            md_out: args.md_out.clone(),
+            profile: args.profile.map(profile_key),
+            fail_on: args.fail_on.map(fail_on_key),
+            include: args.include.clone(),
+            exclude: args.exclude.clone(),
+        },
+    );
+    let output_format = parse_output_format(&runtime.format)?;
+    let profile = parse_profile(&runtime.profile)?;
+    let fail_on = parse_fail_on(&runtime.fail_on)?;
 
     // 2. Initialize spinner
     let pb = ProgressBar::new_spinner();
@@ -86,16 +107,7 @@ fn main() -> Result<()> {
 
     // 3. Initialize Core Engine
     let mut engine = Engine::new();
-    let profile = match args.profile {
-        Profile::Basic => ScanProfile::Basic,
-        Profile::Full => ScanProfile::Full,
-    };
-    let fail_on = match args.fail_on {
-        FailOnLevel::Off => FailOn::Off,
-        FailOnLevel::Error => FailOn::Error,
-        FailOnLevel::Warning => FailOn::Warning,
-    };
-    let selection = build_rule_selection(profile, &args.include, &args.exclude)?;
+    let selection = build_rule_selection(profile, &runtime.include, &runtime.exclude)?;
     register_rules(&mut engine, profile, &selection);
 
     // 4. Run the Engine
@@ -109,7 +121,7 @@ fn main() -> Result<()> {
     // 6. Build report and apply baseline (if any)
     let mut report = build_report(results);
     let mut suppressed = None;
-    if let Some(path) = args.baseline {
+    if let Some(path) = runtime.baseline {
         let baseline_raw = std::fs::read_to_string(path).into_diagnostic()?;
         let baseline: verifyos_cli::report::ReportData =
             serde_json::from_str(&baseline_raw).into_diagnostic()?;
@@ -118,13 +130,13 @@ fn main() -> Result<()> {
     }
 
     // 7. Render output
-    match args.format {
+    match output_format {
         OutputFormat::Table => println!("{}", render_table(&report)),
         OutputFormat::Json => println!("{}", render_json(&report).into_diagnostic()?),
         OutputFormat::Sarif => println!("{}", render_sarif(&report).into_diagnostic()?),
     }
 
-    if let Some(path) = args.md_out {
+    if let Some(path) = runtime.md_out {
         let markdown = render_markdown(&report, suppressed);
         std::fs::write(path, markdown).into_diagnostic()?;
     }
@@ -135,6 +147,64 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn output_format_key(value: OutputFormat) -> String {
+    match value {
+        OutputFormat::Table => "table".to_string(),
+        OutputFormat::Json => "json".to_string(),
+        OutputFormat::Sarif => "sarif".to_string(),
+    }
+}
+
+fn profile_key(value: Profile) -> String {
+    match value {
+        Profile::Basic => "basic".to_string(),
+        Profile::Full => "full".to_string(),
+    }
+}
+
+fn fail_on_key(value: FailOnLevel) -> String {
+    match value {
+        FailOnLevel::Off => "off".to_string(),
+        FailOnLevel::Error => "error".to_string(),
+        FailOnLevel::Warning => "warning".to_string(),
+    }
+}
+
+fn parse_output_format(value: &str) -> Result<OutputFormat> {
+    match value.to_ascii_lowercase().as_str() {
+        "table" => Ok(OutputFormat::Table),
+        "json" => Ok(OutputFormat::Json),
+        "sarif" => Ok(OutputFormat::Sarif),
+        _ => Err(miette::miette!(
+            "Unknown output format `{}`. Expected one of: table, json, sarif",
+            value
+        )),
+    }
+}
+
+fn parse_profile(value: &str) -> Result<ScanProfile> {
+    match value.to_ascii_lowercase().as_str() {
+        "basic" => Ok(ScanProfile::Basic),
+        "full" => Ok(ScanProfile::Full),
+        _ => Err(miette::miette!(
+            "Unknown profile `{}`. Expected one of: basic, full",
+            value
+        )),
+    }
+}
+
+fn parse_fail_on(value: &str) -> Result<FailOn> {
+    match value.to_ascii_lowercase().as_str() {
+        "off" => Ok(FailOn::Off),
+        "error" => Ok(FailOn::Error),
+        "warning" => Ok(FailOn::Warning),
+        _ => Err(miette::miette!(
+            "Unknown fail-on threshold `{}`. Expected one of: off, error, warning",
+            value
+        )),
+    }
 }
 
 fn build_rule_selection(

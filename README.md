@@ -99,6 +99,26 @@ voc --app path/to/YourApp.ipa --exclude RULE_PRIVATE_API
 
 Selectors apply after the chosen `--profile`, so `basic` plus `--include` can narrow the set even further.
 
+### Config file
+
+If `verifyos.toml` exists in the current working directory, `voc` will load it automatically. You can also point to a specific config file:
+
+```bash
+voc --app path/to/YourApp.ipa --config verifyos.toml
+```
+
+Example config:
+
+```toml
+format = "table"
+profile = "full"
+fail_on = "error"
+include = []
+exclude = []
+```
+
+CLI flags override config file values.
+
 ### Output Formats
 
 Table (default):
