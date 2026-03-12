@@ -7,8 +7,8 @@ use verifyos_cli::core::engine::Engine;
 use verifyos_cli::profiles::{register_rules, ScanProfile};
 use verifyos_cli::report::{
     apply_baseline, build_report, render_json, render_markdown, render_sarif, render_table,
+    should_exit_with_failure, FailOn,
 };
-use verifyos_cli::rules::core::{RuleStatus, Severity};
 
 #[derive(Clone, Debug, ValueEnum)]
 enum OutputFormat {
@@ -21,6 +21,13 @@ enum OutputFormat {
 enum Profile {
     Basic,
     Full,
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+enum FailOnLevel {
+    Off,
+    Error,
+    Warning,
 }
 
 #[derive(Parser, Debug)]
@@ -45,6 +52,10 @@ struct Args {
     /// Scan profile: basic or full
     #[arg(long, value_enum, default_value_t = Profile::Full)]
     profile: Profile,
+
+    /// Exit with code 1 when findings reach this severity threshold
+    #[arg(long, value_enum, default_value_t = FailOnLevel::Error)]
+    fail_on: FailOnLevel,
 }
 
 fn main() -> Result<()> {
@@ -67,6 +78,11 @@ fn main() -> Result<()> {
     let profile = match args.profile {
         Profile::Basic => ScanProfile::Basic,
         Profile::Full => ScanProfile::Full,
+    };
+    let fail_on = match args.fail_on {
+        FailOnLevel::Off => FailOn::Off,
+        FailOnLevel::Error => FailOn::Error,
+        FailOnLevel::Warning => FailOn::Warning,
     };
     register_rules(&mut engine, profile);
 
@@ -101,13 +117,8 @@ fn main() -> Result<()> {
         std::fs::write(path, markdown).into_diagnostic()?;
     }
 
-    // 8. Exit with code 1 if any Error severity check failed
-    let has_errors = report.results.iter().any(|r| {
-        matches!(r.status, RuleStatus::Fail | RuleStatus::Error)
-            && matches!(r.severity, Severity::Error)
-    });
-
-    if has_errors {
+    // 8. Exit with code 1 if findings meet the configured threshold
+    if should_exit_with_failure(&report, fail_on) {
         std::process::exit(1);
     }
 

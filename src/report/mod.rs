@@ -32,6 +32,13 @@ pub struct BaselineSummary {
     pub suppressed: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FailOn {
+    Off,
+    Error,
+    Warning,
+}
+
 pub fn build_report(results: Vec<EngineResult>) -> ReportData {
     let generated_at_unix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -99,6 +106,20 @@ fn finding_key(item: &ReportItem) -> String {
         item.rule_id,
         item.evidence.clone().unwrap_or_default()
     )
+}
+
+pub fn should_exit_with_failure(report: &ReportData, fail_on: FailOn) -> bool {
+    match fail_on {
+        FailOn::Off => false,
+        FailOn::Error => report.results.iter().any(|item| {
+            matches!(item.status, RuleStatus::Fail | RuleStatus::Error)
+                && matches!(item.severity, Severity::Error)
+        }),
+        FailOn::Warning => report.results.iter().any(|item| {
+            matches!(item.status, RuleStatus::Fail | RuleStatus::Error)
+                && matches!(item.severity, Severity::Error | Severity::Warning)
+        }),
+    }
 }
 
 pub fn render_table(report: &ReportData) -> String {

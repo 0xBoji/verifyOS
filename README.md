@@ -71,6 +71,20 @@ voc --app path/to/YourApp.ipa --profile full
 
 `full` is the default if `--profile` is omitted.
 
+### Exit thresholds
+
+Control when the CLI exits with code `1`:
+
+```bash
+voc --app path/to/YourApp.ipa --fail-on off
+```
+
+```bash
+voc --app path/to/YourApp.ipa --fail-on warning
+```
+
+`error` is the default if `--fail-on` is omitted.
+
 ### Output Formats
 
 Table (default):
