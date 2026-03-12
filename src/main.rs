@@ -1,10 +1,11 @@
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use comfy_table::Table;
 use indicatif::{ProgressBar, ProgressStyle};
 use miette::{IntoDiagnostic, Result};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use verifyos_cli::agents::write_agents_file;
 use verifyos_cli::config::{load_file_config, resolve_runtime_config, CliOverrides};
 use verifyos_cli::core::engine::Engine;
 use verifyos_cli::profiles::{
@@ -61,8 +62,18 @@ enum AgentPackOutput {
 }
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None, before_help = HELP_BANNER)]
+#[command(
+    author,
+    version,
+    about,
+    long_about = None,
+    before_help = HELP_BANNER,
+    subcommand_negates_reqs = true
+)]
 struct Args {
+    #[command(subcommand)]
+    command: Option<Commands>,
+
     /// Path to the iOS App Bundle (.ipa or .app)
     #[arg(short, long, required_unless_present_any = ["list_rules", "show_rule"])]
     app: Option<PathBuf>,
@@ -120,9 +131,28 @@ struct Args {
     show_rule: Option<String>,
 }
 
+#[derive(Debug, Subcommand)]
+enum Commands {
+    /// Create or update AGENTS.md with verifyOS-cli guidance
+    Init(InitArgs),
+}
+
+#[derive(Debug, Parser)]
+struct InitArgs {
+    /// Path to the AGENTS.md file to create or update
+    #[arg(long, default_value = "AGENTS.md")]
+    path: PathBuf,
+}
+
 fn main() -> Result<()> {
     // 1. Parse CLI arguments
     let args = Args::parse();
+    if let Some(Commands::Init(init)) = args.command {
+        write_agents_file(&init.path)?;
+        println!("Updated {}", init.path.display());
+        return Ok(());
+    }
+
     let file_config = load_file_config(args.config.as_deref())?;
     let runtime = resolve_runtime_config(
         file_config,

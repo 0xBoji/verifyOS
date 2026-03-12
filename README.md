@@ -57,6 +57,14 @@ Run the CLI tool against your `.ipa` or `.app` path:
 voc --app path/to/YourApp.ipa
 ```
 
+Bootstrap an `AGENTS.md` file for AI agent workflows:
+
+```bash
+voc init
+```
+
+If `AGENTS.md` already exists, `voc init` preserves your custom content and replaces only the managed `verifyos-cli` block.
+
 ### Profiles
 
 Run a smaller core ruleset or the full scan:
@@ -140,6 +148,27 @@ exclude = []
 ```
 
 CLI flags override config file values.
+
+### AGENTS.md bootstrap
+
+Generate or refresh an `AGENTS.md` playbook in the current directory:
+
+```bash
+voc init
+```
+
+Write to a custom path:
+
+```bash
+voc init --path docs/AGENTS.md
+```
+
+The generated block includes:
+- a recommended `voc` workflow for quick and release scans
+- AI agent fix-loop rules
+- a live rule inventory with `rule_id`, category, severity, and default profiles
+
+`voc init` uses a managed block, so you can safely keep your own notes above or below it.
 
 ### Output Formats
 

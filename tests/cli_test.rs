@@ -232,3 +232,58 @@ fn test_agent_pack_bundle_writes_json_and_markdown() {
     assert!(output_dir.join("agent-pack.json").exists());
     assert!(output_dir.join("agent-pack.md").exists());
 }
+
+#[test]
+fn test_init_creates_agents_file() {
+    let dir = tempdir().expect("temp dir");
+    let agents_path = dir.path().join("AGENTS.md");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "init",
+            "--path",
+            agents_path.to_str().expect("utf8 agents path"),
+        ])
+        .output()
+        .expect("init should run");
+
+    assert!(output.status.success());
+
+    let contents = std::fs::read_to_string(&agents_path).expect("agents file should exist");
+    assert!(contents.contains("## verifyOS-cli"));
+    assert!(contents.contains("RULE_PRIVACY_MANIFEST"));
+    assert!(contents.contains("<!-- verifyos-cli:agents:start -->"));
+}
+
+#[test]
+fn test_init_updates_existing_agents_file_without_removing_custom_content() {
+    let dir = tempdir().expect("temp dir");
+    let agents_path = dir.path().join("AGENTS.md");
+    std::fs::write(
+        &agents_path,
+        "# AGENTS.md\n\nMy custom note\n\n<!-- verifyos-cli:agents:start -->\nold\n<!-- verifyos-cli:agents:end -->\n\nKeep me\n",
+    )
+    .expect("write existing AGENTS.md");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "init",
+            "--path",
+            agents_path.to_str().expect("utf8 agents path"),
+        ])
+        .output()
+        .expect("init update should run");
+
+    assert!(output.status.success());
+
+    let contents = std::fs::read_to_string(&agents_path).expect("agents file should exist");
+    assert!(contents.contains("My custom note"));
+    assert!(contents.contains("Keep me"));
+    assert!(!contents.contains("\nold\n"));
+    assert_eq!(
+        contents
+            .matches("<!-- verifyos-cli:agents:start -->")
+            .count(),
+        1
+    );
+}
