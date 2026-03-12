@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/0xBoji/verifyos-cli/compare/v0.2.3...v0.3.0) - 2026-03-12
+
+### Added
+
+- *(cli)* add terminal banner
+- *(report)* expose perf metadata
+- *(cli)* add timing detail levels
+- *(report)* add cache telemetry
+- *(report)* highlight slowest rules
+- *(report)* add timing summaries
+- *(cli)* add config file support
+- *(cli)* add rule selectors
+- *(cli)* add fail-on threshold
+
+### Other
+
+- *(core)* cache bundle resources
+- *(core)* cache bundle metadata
+- *(core)* cache artifact scans
+
 ## [0.2.3](https://github.com/0xBoji/verifyos-cli/compare/v0.2.2...v0.2.3) - 2026-03-12
 
 ### Fixed
