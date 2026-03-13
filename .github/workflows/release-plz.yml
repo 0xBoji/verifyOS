@@ -61,22 +61,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_PLZ_PR: ${{ steps.release_pr.outputs.pr }}
         run: |
           set -euo pipefail
 
-          pr_json="$(gh pr list \
-            --state open \
-            --limit 20 \
-            --json number,title,headRefName,updatedAt \
-            --jq 'map(select(.title | startswith("chore(release): release v"))) | sort_by(.updatedAt) | last')"
+          pr_json="$RELEASE_PLZ_PR"
 
           if [ -z "$pr_json" ] || [ "$pr_json" = "null" ]; then
-            echo "No open release PR found; skipping branch rename."
+            echo "release-plz did not report a release PR; skipping branch rename."
             exit 0
           fi
 
-          current_branch="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["headRefName"])')"
-          version="$(printf '%s' "$pr_json" | python3 -c 'import json,re,sys; title=json.load(sys.stdin)["title"]; match=re.search(r"v([0-9A-Za-z._-]+)$", title); print(match.group(1) if match else "")')"
+          current_branch="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["head_branch"])')"
+          version="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; releases=json.load(sys.stdin).get("releases", []); print(releases[0]["version"] if releases else "")')"
 
           if [ -z "$version" ]; then
             echo "Could not determine release version; skipping branch rename."
