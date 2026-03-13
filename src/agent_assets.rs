@@ -12,6 +12,7 @@ pub const FIX_PROMPT_NAME: &str = "fix-prompt.md";
 pub const REPAIR_PLAN_NAME: &str = "repair-plan.md";
 pub const PR_BRIEF_NAME: &str = "pr-brief.md";
 pub const PR_COMMENT_NAME: &str = "pr-comment.md";
+pub const HANDOFF_MANIFEST_NAME: &str = "handoff.json";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, ValueEnum)]
 pub enum RepairTarget {

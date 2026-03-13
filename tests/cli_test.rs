@@ -313,9 +313,16 @@ fn test_handoff_subcommand_writes_full_bundle() {
     assert!(output_dir.join("repair-plan.md").exists());
     assert!(output_dir.join("pr-brief.md").exists());
     assert!(output_dir.join("pr-comment.md").exists());
+    assert!(output_dir.join("handoff.json").exists());
     assert!(output_dir.join(".verifyos-agent/agent-pack.json").exists());
     assert!(output_dir.join(".verifyos-agent/agent-pack.md").exists());
     assert!(output_dir.join(".verifyos-agent/next-steps.sh").exists());
+
+    let manifest = std::fs::read_to_string(output_dir.join("handoff.json"))
+        .expect("handoff manifest should exist");
+    assert!(manifest.contains("\"app_path\""));
+    assert!(manifest.contains("\"assets\""));
+    assert!(manifest.contains("repair-plan.md"));
 }
 
 #[test]

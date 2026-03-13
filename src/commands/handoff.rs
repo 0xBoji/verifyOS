@@ -1,7 +1,9 @@
 use clap::Parser;
-use miette::Result;
+use miette::{IntoDiagnostic, Result};
+use serde::Serialize;
 use std::path::PathBuf;
 
+use verifyos_cli::agent_assets::{AgentAssetLayout, HANDOFF_MANIFEST_NAME};
 use verifyos_cli::config::FileConfig;
 
 use crate::commands::doctor::{run as run_doctor, DoctorArgs};
@@ -46,6 +48,9 @@ pub fn run(handoff: HandoffArgs, file_config: &FileConfig) -> Result<()> {
         .as_ref()
         .and_then(|doctor| doctor.plan_out.clone())
         .unwrap_or_else(|| output_dir.join("repair-plan.md"));
+    let layout = AgentAssetLayout::from_output_dir(&output_dir);
+    let app_path = handoff.from_scan.clone();
+    let baseline_path = handoff.baseline.clone();
 
     run_doctor(
         DoctorArgs {
@@ -54,8 +59,8 @@ pub fn run(handoff: HandoffArgs, file_config: &FileConfig) -> Result<()> {
             config: None,
             format: handoff.format,
             fix: true,
-            from_scan: Some(handoff.from_scan),
-            baseline: handoff.baseline,
+            from_scan: Some(app_path.clone()),
+            baseline: baseline_path.clone(),
             freshness_against: None,
             profile: handoff.profile,
             open_pr_brief: true,
@@ -65,5 +70,41 @@ pub fn run(handoff: HandoffArgs, file_config: &FileConfig) -> Result<()> {
             plan_out: Some(plan_out),
         },
         file_config,
+    )?;
+
+    let manifest = HandoffManifest {
+        app_path: app_path.display().to_string(),
+        baseline_path: baseline_path.map(|path| path.display().to_string()),
+        profile: handoff
+            .profile
+            .map(|profile| format!("{profile:?}").to_ascii_lowercase())
+            .unwrap_or_else(|| "full".to_string()),
+        output_dir: layout.output_dir.display().to_string(),
+        assets: vec![
+            layout.agents_path.display().to_string(),
+            layout.fix_prompt_path.display().to_string(),
+            layout.repair_plan_path.display().to_string(),
+            layout.pr_brief_path.display().to_string(),
+            layout.pr_comment_path.display().to_string(),
+            layout.agent_pack_json_path.display().to_string(),
+            layout.agent_pack_markdown_path.display().to_string(),
+            layout.next_steps_script_path.display().to_string(),
+        ],
+    };
+    let manifest_path = layout.output_dir.join(HANDOFF_MANIFEST_NAME);
+    std::fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).into_diagnostic()?,
     )
+    .into_diagnostic()?;
+    Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct HandoffManifest {
+    app_path: String,
+    baseline_path: Option<String>,
+    profile: String,
+    output_dir: String,
+    assets: Vec<String>,
 }

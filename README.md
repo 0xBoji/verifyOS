@@ -387,6 +387,7 @@ voc handoff --output-dir .verifyos --from-scan path/to/YourApp.ipa --profile bas
 
 This wraps the common handoff flow and refreshes:
 - `AGENTS.md`
+- `handoff.json`
 - `fix-prompt.md`
 - `repair-plan.md`
 - `pr-brief.md`
