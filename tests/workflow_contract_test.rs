@@ -83,4 +83,5 @@ fn release_workflow_renames_release_pr_branch_with_versioned_slug() {
     assert!(workflow.contains("releases[0][\"version\"] if releases else \"\""));
     assert!(workflow.contains("release-plz-v{os.environ['RELEASE_VERSION']}-{slug}"));
     assert!(workflow.contains("repos/$GITHUB_REPOSITORY/branches/$encoded_branch/rename"));
+    assert!(workflow.contains("New branch already exists"));
 }

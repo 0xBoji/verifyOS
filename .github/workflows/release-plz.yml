@@ -130,7 +130,26 @@ jobs:
           fi
 
           encoded_branch="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["CURRENT_BRANCH"], safe=""))')"
-          gh api \
-            --method POST \
-            "repos/$GITHUB_REPOSITORY/branches/$encoded_branch/rename" \
-            -f new_name="$branch_name"
+          set +e
+          response="$(
+            gh api \
+              --method POST \
+              "repos/$GITHUB_REPOSITORY/branches/$encoded_branch/rename" \
+              -f new_name="$branch_name" \
+              2>&1
+          )"
+          status=$?
+          set -e
+
+          if [ $status -eq 0 ]; then
+            echo "$response"
+            exit 0
+          fi
+
+          if printf '%s' "$response" | grep -q "New branch already exists"; then
+            echo "Release branch $branch_name already exists; skipping rename."
+            exit 0
+          fi
+
+          echo "$response"
+          exit $status
