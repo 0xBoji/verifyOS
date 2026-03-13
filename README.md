@@ -38,6 +38,7 @@ The App Store Connect validation step is historically a "black box" that costs d
 - **Entitlements**: Detects debug-only entitlements (like `get-task-allow=true`) and flags mismatches between app entitlements and `embedded.mobileprovision` (APNs, keychain groups, iCloud containers).
 - **Signing**: Ensures embedded frameworks/extensions are signed with the same Team ID as the app binary.
 - **CI-friendly reports**: Outputs `table`, `json`, or `sarif` with evidence and remediation recommendations.
+- **Bundle size insights**: `voc analyze-size` highlights the largest files and category hotspots in `.ipa` or `.app` bundles.
 
 ## Installation
 
@@ -397,6 +398,25 @@ This wraps the common handoff flow and refreshes:
 - `.verifyos-agent/next-steps.sh`
 
 You can also combine `--baseline old-report.json` with `--fix --from-scan` to keep only new or regressed risks in the repaired setup.
+
+### Analyze Size
+
+Inspect the biggest contributors to IPA/app bundle size:
+
+```bash
+voc analyze-size --app path/to/YourApp.ipa
+```
+
+JSON output for CI or automation:
+
+```bash
+voc analyze-size --app path/to/YourApp.ipa --format json --top 15
+```
+
+The current size analysis reports:
+- total bundle size
+- top largest files
+- category breakdowns for `framework`, `extension`, `binary`, `asset`, `metadata`, and `resource`
 
 ### GitHub Actions wrapper
 
