@@ -33,6 +33,7 @@ fn workflow_wires_doctor_repair_and_comment_mode_into_commands() {
     assert!(workflow.contains("doctor_repair = \",\".join(ci.get(\"doctor_repair\", []))"));
     assert!(workflow.contains("comment_mode = ci.get(\"comment_mode\", \"\")"));
     assert!(workflow.contains("doctor_cmd+=(--repair \"$DOCTOR_REPAIR\")"));
+    assert!(workflow.contains("--plan-out \"$OUTPUT_DIR/repair-plan.md\""));
     assert!(workflow.contains("if [ \"$COMMENT_MODE\" = \"sticky\" ]; then"));
     assert!(workflow.contains("pr_comment_cmd+=(--sticky-marker)"));
 }
@@ -44,6 +45,7 @@ fn workflow_uploads_expected_verifyos_outputs() {
     let expected_paths = [
         format!("${{{{ env.OUTPUT_DIR }}}}/{AGENTS_FILE_NAME}"),
         format!("${{{{ env.OUTPUT_DIR }}}}/{FIX_PROMPT_NAME}"),
+        "${{ env.OUTPUT_DIR }}/repair-plan.md".to_string(),
         format!("${{{{ env.OUTPUT_DIR }}}}/{PR_BRIEF_NAME}"),
         format!("${{{{ env.OUTPUT_DIR }}}}/{PR_COMMENT_NAME}"),
         format!("${{{{ env.OUTPUT_DIR }}}}/{AGENT_BUNDLE_DIR_NAME}"),

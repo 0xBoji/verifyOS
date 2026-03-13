@@ -422,6 +422,7 @@ The workflow generates and uploads:
 - `report.sarif`
 - `AGENTS.md`
 - `fix-prompt.md`
+- `repair-plan.md`
 - `pr-brief.md`
 - `pr-comment.md`
 - `doctor.json`

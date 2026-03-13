@@ -267,6 +267,8 @@ PY
             --profile "$PROFILE"
             --open-pr-brief
             --open-pr-comment
+            --plan
+            --plan-out "$OUTPUT_DIR/repair-plan.md"
             --format json
           )
           if [ -n "$BASELINE_PATH" ]; then
@@ -290,6 +292,7 @@ PY
           path: |
             ${{ env.OUTPUT_DIR }}/AGENTS.md
             ${{ env.OUTPUT_DIR }}/fix-prompt.md
+            ${{ env.OUTPUT_DIR }}/repair-plan.md
             ${{ env.OUTPUT_DIR }}/pr-brief.md
             ${{ env.OUTPUT_DIR }}/pr-comment.md
             ${{ env.OUTPUT_DIR }}/doctor.json
