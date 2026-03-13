@@ -21,6 +21,7 @@ fn vscode_extension_launches_voc_lsp() {
     assert!(package_json.contains("\"galleryBanner\""));
     assert!(package_json.contains("\"ai-agent\""));
     assert!(package_json.contains("\"onStartupFinished\""));
+    assert!(package_json.contains("\"onView:verifyOS.explorer\""));
     assert!(package_json.contains("\"viewsContainers\""));
     assert!(package_json.contains("\"verifyOS.explorer\""));
     assert!(package_json.contains("\"verifyOS.scanCurrentBundle\""));

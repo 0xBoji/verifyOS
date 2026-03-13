@@ -35,6 +35,7 @@
   ],
   "activationEvents": [
     "onStartupFinished",
+    "onView:verifyOS.explorer",
     "workspaceContains:**/Info.plist",
     "workspaceContains:**/*.xcprivacy",
     "onCommand:verifyOS.scanCurrentBundle",
