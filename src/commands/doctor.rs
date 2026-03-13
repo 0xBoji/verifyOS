@@ -5,6 +5,10 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use verifyos_cli::agent_assets::{build_repair_plan, AgentAssetLayout, RepairPolicy, RepairTarget};
+use verifyos_cli::agent_io::{
+    empty_agent_pack, infer_existing_command_hints, load_agent_pack, write_agent_pack,
+    write_fix_prompt_file, write_next_steps_script, write_pr_brief_file, write_pr_comment_file,
+};
 use verifyos_cli::agents::{write_agents_file, CommandHints};
 use verifyos_cli::config::FileConfig;
 use verifyos_cli::doctor::{
@@ -13,9 +17,7 @@ use verifyos_cli::doctor::{
 use verifyos_cli::report::AgentPackFormat;
 
 use crate::{
-    empty_agent_pack, infer_existing_command_hints, load_agent_pack, parse_optional_cli_profile,
-    parse_optional_output_format, profile_key, run_scan_for_agent_pack, write_agent_pack,
-    write_fix_prompt_file, write_next_steps_script, write_pr_brief_file, write_pr_comment_file,
+    parse_optional_cli_profile, parse_optional_output_format, profile_key, run_scan_for_agent_pack,
     OutputFormat, Profile,
 };
 

@@ -3,14 +3,12 @@ use miette::Result;
 use std::path::{Path, PathBuf};
 
 use verifyos_cli::agent_assets::AgentAssetLayout;
+use verifyos_cli::agent_io::{write_agent_pack, write_fix_prompt_file, write_next_steps_script};
 use verifyos_cli::agents::{write_agents_file, CommandHints};
 use verifyos_cli::config::FileConfig;
 use verifyos_cli::report::{AgentPack, AgentPackFormat};
 
-use crate::{
-    parse_optional_cli_profile, profile_key, run_scan_for_agent_pack, write_agent_pack,
-    write_fix_prompt_file, write_next_steps_script, Profile,
-};
+use crate::{parse_optional_cli_profile, profile_key, run_scan_for_agent_pack, Profile};
 
 #[derive(Debug, Parser)]
 pub struct InitArgs {
