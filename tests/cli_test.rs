@@ -686,6 +686,7 @@ fn test_init_fix_prompt_writes_prompt_file() {
         std::fs::read_to_string(output_dir.join("fix-prompt.md")).expect("fix prompt should exist");
     assert!(prompt.contains("# verifyOS Fix Prompt"));
     assert!(prompt.contains("Repair plan:"));
+    assert!(prompt.contains("## Related Artifacts"));
     assert!(prompt.contains("## Findings"));
     assert!(prompt.contains("## Validation Commands"));
 
@@ -1234,6 +1235,7 @@ fn test_doctor_fix_from_scan_can_generate_pr_brief() {
         std::fs::read_to_string(output_dir.join("pr-brief.md")).expect("pr brief should exist");
     assert!(brief.contains("# verifyOS PR Brief"));
     assert!(brief.contains("Repair plan:"));
+    assert!(brief.contains("## Related Artifacts"));
     assert!(brief.contains("## Summary"));
     assert!(brief.contains("## Current Risks"));
     assert!(brief.contains("## Validation Commands"));
@@ -1278,6 +1280,7 @@ fn test_doctor_fix_from_scan_can_generate_pr_comment() {
     let comment =
         std::fs::read_to_string(output_dir.join("pr-comment.md")).expect("pr comment should exist");
     assert!(comment.contains("## verifyOS review summary"));
+    assert!(comment.contains("## Related Artifacts"));
     assert!(comment.contains("### Top risks"));
     assert!(comment.contains("### Validation"));
     assert!(comment.contains("Missing Privacy Manifest"));

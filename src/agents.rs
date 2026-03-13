@@ -240,6 +240,7 @@ pub fn render_fix_prompt(pack: &AgentPack, hints: &CommandHints) -> String {
         out.push_str(&format!("- Repair plan: `{}`\n", repair_plan_path));
     }
     out.push('\n');
+    append_related_artifacts(&mut out, hints, ArtifactDoc::FixPrompt);
 
     if pack.findings.is_empty() {
         out.push_str("## Findings\n\n- No current findings. Re-run the validation commands to confirm the app is still clean.\n\n");
@@ -316,6 +317,7 @@ pub fn render_pr_brief(pack: &AgentPack, hints: &CommandHints) -> String {
         out.push_str(&format!("- Repair plan: `{}`\n", repair_plan_path));
     }
     out.push('\n');
+    append_related_artifacts(&mut out, hints, ArtifactDoc::PrBrief);
 
     out.push_str("## What Changed\n\n");
     if pack.findings.is_empty() {
@@ -422,6 +424,7 @@ pub fn render_pr_comment(pack: &AgentPack, hints: &CommandHints) -> String {
     if let Some(profile) = hints.profile.as_deref() {
         out.push_str(&format!("- Scan profile: `{}`\n", profile));
     }
+    append_related_artifacts(&mut out, hints, ArtifactDoc::PrComment);
     out.push('\n');
 
     if pack.findings.is_empty() {
@@ -524,6 +527,50 @@ fn priority_rank(priority: &str) -> u8 {
         "low" => 2,
         _ => 3,
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ArtifactDoc {
+    FixPrompt,
+    RepairPlan,
+    PrBrief,
+    PrComment,
+}
+
+fn append_related_artifacts(out: &mut String, hints: &CommandHints, current: ArtifactDoc) {
+    let mut rows = Vec::new();
+
+    if current != ArtifactDoc::FixPrompt {
+        if let Some(path) = hints.fix_prompt_path.as_deref() {
+            rows.push(format!("- Fix prompt: `{path}`"));
+        }
+    }
+    if current != ArtifactDoc::RepairPlan {
+        if let Some(path) = hints.repair_plan_path.as_deref() {
+            rows.push(format!("- Repair plan: `{path}`"));
+        }
+    }
+    if current != ArtifactDoc::PrBrief {
+        if let Some(path) = hints.pr_brief_path.as_deref() {
+            rows.push(format!("- PR brief: `{path}`"));
+        }
+    }
+    if current != ArtifactDoc::PrComment {
+        if let Some(path) = hints.pr_comment_path.as_deref() {
+            rows.push(format!("- PR comment: `{path}`"));
+        }
+    }
+
+    if rows.is_empty() {
+        return;
+    }
+
+    out.push_str("## Related Artifacts\n\n");
+    for row in rows {
+        out.push_str(&row);
+        out.push('\n');
+    }
+    out.push('\n');
 }
 
 fn inventory_row(item: &RuleInventoryItem) -> String {

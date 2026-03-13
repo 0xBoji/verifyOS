@@ -158,7 +158,9 @@ pub fn run(doctor: DoctorArgs, file_config: &FileConfig) -> Result<()> {
             &policy,
         ));
         if let Some(path) = plan_out.as_deref() {
-            write_plan_markdown(path, &report)?;
+            let mut hints = infer_existing_command_hints(&layout);
+            hints.repair_plan_path = Some(path.display().to_string());
+            write_plan_markdown(path, &report, Some(&hints))?;
         }
     }
     render_doctor_report(&report, doctor_format)?;
@@ -303,6 +305,7 @@ fn repair_doctor_setup(
             repair_plan,
             plan_context: Some(repair_plan_context),
         },
+        Some(&command_hints),
     )?;
 
     Ok(())
@@ -361,15 +364,19 @@ fn render_doctor_report(report: &DoctorReport, format: OutputFormat) -> Result<(
     Ok(())
 }
 
-fn write_plan_markdown(path: &Path, report: &DoctorReport) -> Result<()> {
+fn write_plan_markdown(
+    path: &Path,
+    report: &DoctorReport,
+    hints: Option<&CommandHints>,
+) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).into_diagnostic()?;
     }
-    std::fs::write(path, render_plan_markdown(report)).into_diagnostic()?;
+    std::fs::write(path, render_plan_markdown(report, hints)).into_diagnostic()?;
     Ok(())
 }
 
-fn render_plan_markdown(report: &DoctorReport) -> String {
+fn render_plan_markdown(report: &DoctorReport, hints: Option<&CommandHints>) -> String {
     let mut out = String::new();
     out.push_str("# verifyOS Repair Plan\n\n");
 
@@ -391,6 +398,27 @@ fn render_plan_markdown(report: &DoctorReport) -> String {
         ));
     }
 
+    if let Some(hints) = hints {
+        let mut rows = Vec::new();
+        if let Some(path) = hints.fix_prompt_path.as_deref() {
+            rows.push(format!("- Fix prompt: `{path}`"));
+        }
+        if let Some(path) = hints.pr_brief_path.as_deref() {
+            rows.push(format!("- PR brief: `{path}`"));
+        }
+        if let Some(path) = hints.pr_comment_path.as_deref() {
+            rows.push(format!("- PR comment: `{path}`"));
+        }
+        if !rows.is_empty() {
+            out.push_str("## Related Artifacts\n\n");
+            for row in rows {
+                out.push_str(&row);
+                out.push('\n');
+            }
+            out.push('\n');
+        }
+    }
+
     out.push_str("## Planned Outputs\n\n");
     if report.repair_plan.is_empty() {
         out.push_str("- No repair outputs selected.\n");
@@ -410,6 +438,7 @@ fn render_plan_markdown(report: &DoctorReport) -> String {
 mod tests {
     use super::render_plan_markdown;
     use verifyos_cli::agent_assets::RepairPlanItem;
+    use verifyos_cli::agents::CommandHints;
     use verifyos_cli::doctor::{DoctorPlanContext, DoctorReport};
 
     #[test]
@@ -437,7 +466,14 @@ mod tests {
             }),
         };
 
-        let markdown = render_plan_markdown(&report);
+        let hints = CommandHints {
+            fix_prompt_path: Some(".verifyos/fix-prompt.md".to_string()),
+            pr_brief_path: Some(".verifyos/pr-brief.md".to_string()),
+            pr_comment_path: Some(".verifyos/pr-comment.md".to_string()),
+            ..CommandHints::default()
+        };
+
+        let markdown = render_plan_markdown(&report, Some(&hints));
         let expected = r#"# verifyOS Repair Plan
 
 ## Context
@@ -447,6 +483,12 @@ mod tests {
 - Baseline: `baseline.json`
 - Freshness source: `.verifyos/report.json`
 - Repair targets: `agent-bundle, pr-comment`
+
+## Related Artifacts
+
+- Fix prompt: `.verifyos/fix-prompt.md`
+- PR brief: `.verifyos/pr-brief.md`
+- PR comment: `.verifyos/pr-comment.md`
 
 ## Planned Outputs
 

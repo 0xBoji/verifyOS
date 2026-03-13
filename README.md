@@ -361,6 +361,7 @@ When `--fix --from-scan` is enabled, `voc doctor` does the same repair work but 
 - `agent-pack.json`
 - `agent-pack.md`
 - `fix-prompt.md`
+- cross-links between `fix-prompt.md`, `repair-plan.md`, `pr-brief.md`, and `pr-comment.md`
 - `next-steps.sh`
 - follow-up commands that point back to the scanned artifact
 
