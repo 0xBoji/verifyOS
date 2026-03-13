@@ -20,15 +20,25 @@ fn vscode_extension_launches_voc_lsp() {
     assert!(package_json.contains("\"icon\": \"assets/verifyOS_128x.png\""));
     assert!(package_json.contains("\"galleryBanner\""));
     assert!(package_json.contains("\"ai-agent\""));
+    assert!(package_json.contains("\"onStartupFinished\""));
+    assert!(package_json.contains("\"viewsContainers\""));
+    assert!(package_json.contains("\"verifyOS.explorer\""));
+    assert!(package_json.contains("\"verifyOS.scanCurrentBundle\""));
+    assert!(package_json.contains("\"verifyOS.generateHandoff\""));
+    assert!(package_json.contains("\"verifyOS.openProblems\""));
     assert!(package_json.contains("\"verifyOS.restartLanguageServer\""));
     assert!(package_json.contains("\"verifyOS.showOutput\""));
     assert!(package_json.contains("\"verifyOS.path\""));
     assert!(package_json.contains("\"verifyOS.useBundledBinary\""));
     assert!(package_json.contains("\"verifyOS.profile\""));
+    assert!(package_json.contains("\"verifyOS.outputDir\""));
     assert!(package_json.contains("\"bin/**\""));
     assert!(extension_ts.contains("[\"lsp\", \"--profile\", profile]"));
     assert!(extension_ts.contains("resolveBundledBinary(context)"));
     assert!(extension_ts.contains("Starting verifyOS language server via"));
+    assert!(extension_ts.contains("createTreeView(\"verifyOS.explorer\""));
+    assert!(extension_ts.contains("verifyOS: generating handoff bundle"));
+    assert!(extension_ts.contains("workbench.actions.view.problems"));
     assert!(extension_ts.contains("verifyOS could not start `voc lsp`"));
 }
 

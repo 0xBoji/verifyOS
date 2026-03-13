@@ -1,13 +1,13 @@
 {
   "name": "verifyos-vscode",
   "displayName": "verifyOS",
-  "description": "App Store review diagnostics for Info.plist and PrivacyInfo.xcprivacy, powered by the verifyOS Rust CLI.",
+  "description": "Catch App Store review risks in VS Code with bundled verifyOS diagnostics for Info.plist and PrivacyInfo.xcprivacy.",
   "version": "0.1.2",
   "publisher": "0xboji",
   "license": "MIT",
   "icon": "assets/verifyOS_128x.png",
   "galleryBanner": {
-    "color": "#D9E5F2",
+    "color": "#8C52FF",
     "theme": "light"
   },
   "repository": {
@@ -34,8 +34,12 @@
     "ai-agent"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "workspaceContains:**/Info.plist",
     "workspaceContains:**/*.xcprivacy",
+    "onCommand:verifyOS.scanCurrentBundle",
+    "onCommand:verifyOS.generateHandoff",
+    "onCommand:verifyOS.openProblems",
     "onCommand:verifyOS.restartLanguageServer",
     "onCommand:verifyOS.showOutput"
   ],
@@ -51,6 +55,18 @@
   "contributes": {
     "commands": [
       {
+        "command": "verifyOS.scanCurrentBundle",
+        "title": "verifyOS: Scan Current Bundle"
+      },
+      {
+        "command": "verifyOS.generateHandoff",
+        "title": "verifyOS: Generate Handoff Bundle"
+      },
+      {
+        "command": "verifyOS.openProblems",
+        "title": "verifyOS: Open Problems"
+      },
+      {
         "command": "verifyOS.restartLanguageServer",
         "title": "verifyOS: Restart Language Server"
       },
@@ -59,6 +75,23 @@
         "title": "verifyOS: Show Output"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "verifyOS",
+          "title": "verifyOS",
+          "icon": "assets/verifyOS_128x.png"
+        }
+      ]
+    },
+    "views": {
+      "verifyOS": [
+        {
+          "id": "verifyOS.explorer",
+          "name": "Action Center"
+        }
+      ]
+    },
     "configuration": {
       "title": "verifyOS",
       "properties": {
@@ -80,6 +113,11 @@
           ],
           "default": "basic",
           "description": "Rule profile passed to `voc lsp`."
+        },
+        "verifyOS.outputDir": {
+          "type": "string",
+          "default": ".verifyos",
+          "description": "Workspace-relative directory used for handoff outputs generated from the sidebar."
         },
         "verifyOS.trace.server": {
           "type": "string",
