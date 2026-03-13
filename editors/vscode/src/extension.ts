@@ -384,12 +384,9 @@ async function restartClient(context: vscode.ExtensionContext): Promise<void> {
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   explorer = new VerifyOSView();
-  const treeView = vscode.window.createTreeView("verifyOS.explorer", {
-    treeDataProvider: explorer,
-  });
 
   context.subscriptions.push(
-    treeView,
+    vscode.window.registerTreeDataProvider("verifyOS.explorer", explorer),
     vscode.commands.registerCommand("verifyOS.scanCurrentBundle", async () => {
       await scanCurrentBundle(context);
     }),

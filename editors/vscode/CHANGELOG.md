@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5
+
+- Registered the Action Center tree provider explicitly for more reliable sidebar activation
+- Added a dedicated activity-bar icon with a cleaner verification-style mark
+
 ## 0.1.4
 
 - Fixed Action Center activation so the sidebar always registers its tree data provider when opened

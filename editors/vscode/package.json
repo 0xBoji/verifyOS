@@ -2,7 +2,7 @@
   "name": "verifyos-vscode",
   "displayName": "verifyOS",
   "description": "Catch App Store review risks in VS Code with bundled verifyOS diagnostics for Info.plist and PrivacyInfo.xcprivacy.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "0xboji",
   "license": "MIT",
   "icon": "assets/verifyOS_128x.png",
@@ -82,7 +82,7 @@
         {
           "id": "verifyOS",
           "title": "verifyOS",
-          "icon": "assets/verifyOS_128x.png"
+          "icon": "assets/verifyOS-activity.svg"
         }
       ]
     },

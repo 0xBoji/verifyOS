@@ -16,8 +16,9 @@ fn vscode_extension_launches_voc_lsp() {
     let package_json = vscode_file("package.json");
     let extension_ts = vscode_file("src/extension.ts");
 
-    assert!(package_json.contains("\"version\": \"0.1.4\""));
+    assert!(package_json.contains("\"version\": \"0.1.5\""));
     assert!(package_json.contains("\"icon\": \"assets/verifyOS_128x.png\""));
+    assert!(package_json.contains("\"icon\": \"assets/verifyOS-activity.svg\""));
     assert!(package_json.contains("\"galleryBanner\""));
     assert!(package_json.contains("\"ai-agent\""));
     assert!(package_json.contains("\"onStartupFinished\""));
@@ -38,7 +39,7 @@ fn vscode_extension_launches_voc_lsp() {
     assert!(extension_ts.contains("[\"lsp\", \"--profile\", profile]"));
     assert!(extension_ts.contains("resolveBundledBinary(context)"));
     assert!(extension_ts.contains("Starting verifyOS language server via"));
-    assert!(extension_ts.contains("createTreeView(\"verifyOS.explorer\""));
+    assert!(extension_ts.contains("registerTreeDataProvider(\"verifyOS.explorer\""));
     assert!(extension_ts.contains("verifyOS: generating handoff bundle"));
     assert!(extension_ts.contains("workbench.actions.view.problems"));
     assert!(extension_ts.contains("verifyOS could not start `voc lsp`"));
@@ -57,8 +58,8 @@ fn vscode_extension_workflow_packages_and_publishes_vsix() {
     .expect("vscode workflow should be readable");
 
     assert!(package_json.contains("\"package\": \"vsce package --allow-missing-repository\""));
-    assert!(changelog.contains("## 0.1.4"));
-    assert!(changelog.contains("tree data provider"));
+    assert!(changelog.contains("## 0.1.5"));
+    assert!(changelog.contains("Action Center tree provider explicitly"));
     assert!(package_json.contains("\"publish:vsce\": \"vsce publish\""));
     assert!(package_json.contains("\"publish:ovsx\": \"ovsx publish\""));
     assert!(package_json.contains("\"LICENSE.md\""));
