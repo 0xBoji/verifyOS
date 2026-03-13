@@ -8,7 +8,8 @@ use verifyos_cli::agents::{write_agents_file, CommandHints};
 use verifyos_cli::config::FileConfig;
 use verifyos_cli::report::{AgentPack, AgentPackFormat};
 
-use crate::{parse_optional_cli_profile, profile_key, run_scan_for_agent_pack, Profile};
+use crate::commands::support::{parse_optional_cli_profile, profile_key};
+use crate::{run_scan_for_agent_pack, Profile};
 
 #[derive(Debug, Parser)]
 pub struct InitArgs {

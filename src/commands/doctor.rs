@@ -16,10 +16,10 @@ use verifyos_cli::doctor::{
 };
 use verifyos_cli::report::AgentPackFormat;
 
-use crate::{
-    parse_optional_cli_profile, parse_optional_output_format, profile_key, run_scan_for_agent_pack,
-    OutputFormat, Profile,
+use crate::commands::support::{
+    parse_optional_cli_profile, parse_optional_output_format, profile_key,
 };
+use crate::{run_scan_for_agent_pack, OutputFormat, Profile};
 
 #[derive(Debug, Clone)]
 struct DoctorRepairOptions {

@@ -2,7 +2,6 @@ use clap::{Parser, Subcommand, ValueEnum};
 use comfy_table::Table;
 use indicatif::{ProgressBar, ProgressStyle};
 use miette::{IntoDiagnostic, Result};
-use std::collections::HashSet;
 use std::path::PathBuf;
 
 mod commands;
@@ -10,17 +9,21 @@ mod commands;
 use commands::doctor::{run as run_doctor_command, DoctorArgs};
 use commands::init::{run as run_init_command, InitArgs};
 use commands::pr_comment::{run as run_pr_comment_command, PrCommentArgs};
+use commands::support::{
+    agent_pack_format_key, build_rule_selection, fail_on_key, output_format_key,
+    parse_agent_pack_format, parse_fail_on, parse_output_format, parse_profile, parse_timing_mode,
+    profile_key, timing_key,
+};
 
 use verifyos_cli::config::{load_file_config, resolve_runtime_config, CliOverrides};
 use verifyos_cli::core::engine::Engine;
 use verifyos_cli::profiles::{
-    available_rule_ids, normalize_rule_id, register_rules, rule_detail, rule_inventory,
-    RuleDetailItem, RuleInventoryItem, RuleSelection, ScanProfile,
+    register_rules, rule_detail, rule_inventory, RuleDetailItem, RuleInventoryItem, RuleSelection,
 };
 use verifyos_cli::report::{
     apply_agent_pack_baseline, apply_baseline, build_agent_pack, build_report,
     render_agent_pack_markdown, render_json, render_markdown, render_sarif, render_table,
-    should_exit_with_failure, AgentPackFormat, FailOn, TimingMode,
+    should_exit_with_failure, AgentPackFormat,
 };
 
 const HELP_BANNER: &str = r#"
@@ -249,129 +252,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn output_format_key(value: OutputFormat) -> String {
-    match value {
-        OutputFormat::Table => "table".to_string(),
-        OutputFormat::Json => "json".to_string(),
-        OutputFormat::Sarif => "sarif".to_string(),
-    }
-}
-
-fn profile_key(value: Profile) -> String {
-    match value {
-        Profile::Basic => "basic".to_string(),
-        Profile::Full => "full".to_string(),
-    }
-}
-
-fn fail_on_key(value: FailOnLevel) -> String {
-    match value {
-        FailOnLevel::Off => "off".to_string(),
-        FailOnLevel::Error => "error".to_string(),
-        FailOnLevel::Warning => "warning".to_string(),
-    }
-}
-
-fn timing_key(value: TimingLevel) -> String {
-    match value {
-        TimingLevel::Summary => "summary".to_string(),
-        TimingLevel::Full => "full".to_string(),
-    }
-}
-
-fn agent_pack_format_key(value: AgentPackOutput) -> String {
-    match value {
-        AgentPackOutput::Json => "json".to_string(),
-        AgentPackOutput::Markdown => "markdown".to_string(),
-        AgentPackOutput::Bundle => "bundle".to_string(),
-    }
-}
-
-fn parse_output_format(value: &str) -> Result<OutputFormat> {
-    match value.to_ascii_lowercase().as_str() {
-        "table" => Ok(OutputFormat::Table),
-        "json" => Ok(OutputFormat::Json),
-        "sarif" => Ok(OutputFormat::Sarif),
-        _ => Err(miette::miette!(
-            "Unknown output format `{}`. Expected one of: table, json, sarif",
-            value
-        )),
-    }
-}
-
-fn parse_profile(value: &str) -> Result<ScanProfile> {
-    match value.to_ascii_lowercase().as_str() {
-        "basic" => Ok(ScanProfile::Basic),
-        "full" => Ok(ScanProfile::Full),
-        _ => Err(miette::miette!(
-            "Unknown profile `{}`. Expected one of: basic, full",
-            value
-        )),
-    }
-}
-
-fn parse_cli_profile(value: &str) -> Result<Profile> {
-    match value.to_ascii_lowercase().as_str() {
-        "basic" => Ok(Profile::Basic),
-        "full" => Ok(Profile::Full),
-        _ => Err(miette::miette!(
-            "Unknown profile `{}`. Expected one of: basic, full",
-            value
-        )),
-    }
-}
-
-fn parse_optional_cli_profile(value: Option<&str>) -> Result<Option<Profile>> {
-    value.map(parse_cli_profile).transpose()
-}
-
-fn scan_profile_from_cli(value: Profile) -> ScanProfile {
-    match value {
-        Profile::Basic => ScanProfile::Basic,
-        Profile::Full => ScanProfile::Full,
-    }
-}
-
-fn parse_fail_on(value: &str) -> Result<FailOn> {
-    match value.to_ascii_lowercase().as_str() {
-        "off" => Ok(FailOn::Off),
-        "error" => Ok(FailOn::Error),
-        "warning" => Ok(FailOn::Warning),
-        _ => Err(miette::miette!(
-            "Unknown fail-on threshold `{}`. Expected one of: off, error, warning",
-            value
-        )),
-    }
-}
-
-fn parse_timing_mode(value: &str) -> Result<TimingMode> {
-    match value.to_ascii_lowercase().as_str() {
-        "off" => Ok(TimingMode::Off),
-        "summary" => Ok(TimingMode::Summary),
-        "full" => Ok(TimingMode::Full),
-        _ => Err(miette::miette!(
-            "Unknown timings mode `{}`. Expected one of: off, summary, full",
-            value
-        )),
-    }
-}
-
-fn parse_agent_pack_format(value: &str) -> Result<AgentPackFormat> {
-    match value.to_ascii_lowercase().as_str() {
-        "json" => Ok(AgentPackFormat::Json),
-        "markdown" => Ok(AgentPackFormat::Markdown),
-        "bundle" => Ok(AgentPackFormat::Bundle),
-        _ => Err(miette::miette!(
-            "Unknown agent pack format `{}`. Expected one of: json, markdown, bundle",
-            value
-        )),
-    }
-}
-
-fn parse_optional_output_format(value: Option<&str>) -> Result<Option<OutputFormat>> {
-    value.map(parse_output_format).transpose()
-}
-
 fn write_agent_pack(
     path: &std::path::Path,
     agent_pack: &verifyos_cli::report::AgentPack,
@@ -407,7 +287,7 @@ fn run_scan_for_agent_pack(
 ) -> Result<verifyos_cli::report::AgentPack> {
     let mut engine = Engine::new();
     let selection = RuleSelection::default();
-    let profile = scan_profile_from_cli(profile);
+    let profile = commands::support::scan_profile_from_cli(profile);
     register_rules(&mut engine, profile, &selection);
 
     let run = engine
@@ -422,42 +302,6 @@ fn run_scan_for_agent_pack(
         apply_agent_pack_baseline(&mut agent_pack, &baseline);
     }
     Ok(agent_pack)
-}
-
-fn build_rule_selection(
-    profile: ScanProfile,
-    include: &[String],
-    exclude: &[String],
-) -> Result<RuleSelection> {
-    let available: HashSet<String> = available_rule_ids(profile).into_iter().collect();
-    let include = normalize_requested_rules(include, &available, "--include")?;
-    let exclude = normalize_requested_rules(exclude, &available, "--exclude")?;
-
-    Ok(RuleSelection { include, exclude })
-}
-
-fn normalize_requested_rules(
-    values: &[String],
-    available: &HashSet<String>,
-    flag_name: &str,
-) -> Result<HashSet<String>> {
-    let mut normalized = HashSet::new();
-
-    for value in values {
-        let rule_id = normalize_rule_id(value);
-        if !available.contains(&rule_id) {
-            let mut available_ids: Vec<&str> = available.iter().map(String::as_str).collect();
-            available_ids.sort_unstable();
-            return Err(miette::miette!(
-                "{flag_name} contains unknown rule ID `{}`. Available rule IDs for this profile: {}",
-                value,
-                available_ids.join(", ")
-            ));
-        }
-        normalized.insert(rule_id);
-    }
-
-    Ok(normalized)
 }
 
 fn render_rule_inventory(output_format: OutputFormat) -> Result<()> {
