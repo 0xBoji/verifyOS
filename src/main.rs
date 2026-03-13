@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 mod commands;
 
+use commands::analyze_size::{run as run_analyze_size_command, AnalyzeSizeArgs};
 use commands::doctor::{run as run_doctor_command, DoctorArgs};
 use commands::handoff::{run as run_handoff_command, HandoffArgs};
 use commands::init::{run as run_init_command, InitArgs};
@@ -144,6 +145,8 @@ struct Args {
 enum Commands {
     /// Create or update AGENTS.md with verifyOS-cli guidance
     Init(InitArgs),
+    /// Inspect IPA/app bundle size hotspots and category breakdowns
+    AnalyzeSize(AnalyzeSizeArgs),
     /// Verify verifyOS-cli config and generated agent assets
     Doctor(DoctorArgs),
     /// Refresh the full agent handoff bundle from a fresh scan
@@ -158,6 +161,9 @@ fn main() -> Result<()> {
     let file_config = load_file_config(args.config.as_deref())?;
     if let Some(Commands::Init(init)) = args.command {
         return run_init_command(init, &file_config);
+    }
+    if let Some(Commands::AnalyzeSize(analyze_size)) = args.command {
+        return run_analyze_size_command(analyze_size);
     }
     if let Some(Commands::Doctor(doctor)) = args.command {
         return run_doctor_command(doctor, &file_config);

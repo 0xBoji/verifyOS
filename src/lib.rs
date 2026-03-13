@@ -9,3 +9,4 @@ pub mod parsers;
 pub mod profiles;
 pub mod report;
 pub mod rules;
+pub mod size_analysis;

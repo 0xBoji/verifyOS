@@ -326,6 +326,42 @@ fn test_handoff_subcommand_writes_full_bundle() {
 }
 
 #[test]
+fn test_analyze_size_subcommand_reports_json_breakdown() {
+    let dir = tempdir().expect("temp dir");
+    let app = dir.path().join("Demo.app");
+    std::fs::create_dir_all(app.join("Frameworks/Foo.framework")).expect("framework dir");
+    std::fs::write(app.join("Demo"), vec![0u8; 10]).expect("write binary");
+    std::fs::write(app.join("Assets.car"), vec![0u8; 20]).expect("write assets");
+    std::fs::write(app.join("Frameworks/Foo.framework/Foo"), vec![0u8; 30])
+        .expect("write framework");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "analyze-size",
+            "--app",
+            app.to_str().expect("utf8 app path"),
+            "--format",
+            "json",
+            "--top",
+            "2",
+        ])
+        .output()
+        .expect("analyze-size should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("utf8");
+    let value: serde_json::Value = serde_json::from_str(&stdout).expect("json");
+    assert_eq!(value["total_bytes"], 60);
+    assert_eq!(value["top_files"].as_array().expect("top files").len(), 2);
+    assert_eq!(value["top_files"][0]["category"], "framework");
+    assert!(value["categories"]
+        .as_array()
+        .expect("categories")
+        .iter()
+        .any(|item| item["category"] == "asset"));
+}
+
+#[test]
 fn test_agent_pack_writes_fix_json() {
     let dir = tempdir().expect("temp dir");
     let output_path = dir.path().join("fixes.json");

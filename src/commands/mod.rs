@@ -1,3 +1,4 @@
+pub mod analyze_size;
 pub mod doctor;
 pub mod handoff;
 pub mod init;
