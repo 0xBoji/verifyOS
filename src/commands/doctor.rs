@@ -405,3 +405,59 @@ fn render_plan_markdown(report: &DoctorReport) -> String {
 
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::render_plan_markdown;
+    use verifyos_cli::agent_assets::RepairPlanItem;
+    use verifyos_cli::doctor::{DoctorPlanContext, DoctorReport};
+
+    #[test]
+    fn render_plan_markdown_matches_snapshot() {
+        let report = DoctorReport {
+            checks: Vec::new(),
+            repair_plan: vec![
+                RepairPlanItem {
+                    target: "agent-bundle".to_string(),
+                    path: ".verifyos/.verifyos-agent".to_string(),
+                    reason: "rebuild agent-pack files and next-steps.sh".to_string(),
+                },
+                RepairPlanItem {
+                    target: "pr-comment".to_string(),
+                    path: ".verifyos/pr-comment.md".to_string(),
+                    reason: "refresh sticky PR comment draft".to_string(),
+                },
+            ],
+            plan_context: Some(DoctorPlanContext {
+                source: "fresh-scan".to_string(),
+                scan_artifact: Some("examples/bad_app.ipa".to_string()),
+                baseline_path: Some("baseline.json".to_string()),
+                freshness_source: Some(".verifyos/report.json".to_string()),
+                repair_targets: vec!["agent-bundle".to_string(), "pr-comment".to_string()],
+            }),
+        };
+
+        let markdown = render_plan_markdown(&report);
+        let expected = r#"# verifyOS Repair Plan
+
+## Context
+
+- Source: `fresh-scan`
+- Scan artifact: `examples/bad_app.ipa`
+- Baseline: `baseline.json`
+- Freshness source: `.verifyos/report.json`
+- Repair targets: `agent-bundle, pr-comment`
+
+## Planned Outputs
+
+- **agent-bundle**
+  - Path: `.verifyos/.verifyos-agent`
+  - Reason: rebuild agent-pack files and next-steps.sh
+- **pr-comment**
+  - Path: `.verifyos/pr-comment.md`
+  - Reason: refresh sticky PR comment draft
+"#;
+
+        assert_eq!(markdown, expected);
+    }
+}
