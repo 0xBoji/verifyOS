@@ -364,12 +364,13 @@ The workflow generates and uploads:
 - `AGENTS.md`
 - `fix-prompt.md`
 - `pr-brief.md`
+- `pr-comment.md`
 - `doctor.json`
 - `.verifyos-agent/agent-pack.json`
 - `.verifyos-agent/agent-pack.md`
 - `.verifyos-agent/next-steps.sh`
 
-When `comment_on_pr` is enabled and a PR number is available, the workflow also updates a sticky PR comment with a compact analysis summary and links the review flow to the uploaded assets.
+When `comment_on_pr` is enabled and a PR number is available, the workflow also updates a sticky PR comment from `pr-comment.md` when present, with a safe fallback to an inline summary if that file is missing.
 
 ### Output Formats
 

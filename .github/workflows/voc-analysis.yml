@@ -199,6 +199,7 @@ jobs:
             --from-scan "$APP_PATH"
             --profile "$PROFILE"
             --open-pr-brief
+            --open-pr-comment
             --format json
           )
           if [ -n "$BASELINE_PATH" ]; then
@@ -220,6 +221,7 @@ jobs:
             ${{ env.OUTPUT_DIR }}/AGENTS.md
             ${{ env.OUTPUT_DIR }}/fix-prompt.md
             ${{ env.OUTPUT_DIR }}/pr-brief.md
+            ${{ env.OUTPUT_DIR }}/pr-comment.md
             ${{ env.OUTPUT_DIR }}/doctor.json
             ${{ env.OUTPUT_DIR }}/report.sarif
             ${{ env.OUTPUT_DIR }}/.verifyos-agent
@@ -246,6 +248,7 @@ jobs:
             const outDir = process.env.OUTPUT_DIR;
             const doctorPath = path.join(outDir, 'doctor.json');
             const agentPackPath = path.join(outDir, '.verifyos-agent', 'agent-pack.json');
+            const prCommentPath = path.join(outDir, 'pr-comment.md');
             let findings = 0;
             let doctorSummary = 'doctor report missing';
 
@@ -261,17 +264,19 @@ jobs:
                 .join(', ');
             }
 
-            const body = [
-              '<!-- voc-analysis-comment -->',
-              '## voc analysis',
-              '',
-              `- Findings: **${findings}**`,
-              `- Scan exit code: \`${process.env.SCAN_EXIT}\``,
-              `- Doctor exit code: \`${process.env.DOCTOR_EXIT}\``,
-              `- Assets uploaded from: \`${outDir}\``,
-              `- Includes: \`report.sarif\`, \`AGENTS.md\`, \`fix-prompt.md\`, \`pr-brief.md\`, \`.verifyos-agent/\``,
-              `- Doctor summary: ${doctorSummary}`,
-            ].join('\n');
+            const body = fs.existsSync(prCommentPath)
+              ? `<!-- voc-analysis-comment -->\n${fs.readFileSync(prCommentPath, 'utf8').trim()}`
+              : [
+                  '<!-- voc-analysis-comment -->',
+                  '## voc analysis',
+                  '',
+                  `- Findings: **${findings}**`,
+                  `- Scan exit code: \`${process.env.SCAN_EXIT}\``,
+                  `- Doctor exit code: \`${process.env.DOCTOR_EXIT}\``,
+                  `- Assets uploaded from: \`${outDir}\``,
+                  `- Includes: \`report.sarif\`, \`AGENTS.md\`, \`fix-prompt.md\`, \`pr-brief.md\`, \`pr-comment.md\`, \`.verifyos-agent/\``,
+                  `- Doctor summary: ${doctorSummary}`,
+                ].join('\n');
 
             const { owner, repo } = context.repo;
             const issue_number = process.env.PR_NUMBER
