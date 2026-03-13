@@ -77,11 +77,6 @@ fn release_workflow_renames_release_pr_branch_with_versioned_slug() {
             .expect("release-plz config should be readable");
 
     assert!(config.contains("pr_branch_prefix = \"release-plz-\""));
-    assert!(workflow.contains("Rename release PR branch"));
-    assert!(workflow.contains("RELEASE_PLZ_PR: ${{ steps.release_pr.outputs.pr }}"));
-    assert!(workflow.contains("head_branch"));
-    assert!(workflow.contains("releases[0][\"version\"] if releases else \"\""));
-    assert!(workflow.contains("release-plz-v{os.environ['RELEASE_VERSION']}-{slug}"));
-    assert!(workflow.contains("repos/$GITHUB_REPOSITORY/branches/$encoded_branch/rename"));
-    assert!(workflow.contains("New branch already exists"));
+    assert!(!workflow.contains("Rename release PR branch"));
+    assert!(!workflow.contains("branches/$encoded_branch/rename"));
 }
