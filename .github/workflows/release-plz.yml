@@ -57,3 +57,212 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Label and summarize release PR
+        if: steps.release_pr.outputs.pr != '' && steps.release_pr.outputs.pr != 'null'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_PLZ_PR: ${{ steps.release_pr.outputs.pr }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          pr_json="$RELEASE_PLZ_PR"
+          pr_number="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["number"])')"
+          version="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; releases=json.load(sys.stdin).get("releases", []); print(releases[0]["version"] if releases else "")')"
+
+          last_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          if [ -n "$last_tag" ]; then
+            subjects="$(git log "${last_tag}..HEAD" --pretty=%s)"
+          else
+            subjects="$(git log --pretty=%s)"
+          fi
+
+          export COMMIT_SUBJECTS="$subjects"
+          summary="$(python3 <<'PY'
+          import os
+          import re
+
+          subjects = [line.strip() for line in os.environ.get("COMMIT_SUBJECTS", "").splitlines() if line.strip()]
+          preferred_types = {"feat", "fix", "perf", "refactor"}
+          scopes = []
+          grouped = []
+
+          for subject in subjects:
+              match = re.match(r"(?P<type>[a-z]+)(?:\((?P<scope>[^)]+)\))?:\s*(?P<title>.+)", subject)
+              if not match:
+                  continue
+              kind = match.group("type")
+              scope = (match.group("scope") or kind).strip()
+              title = match.group("title").strip()
+              scope_slug = re.sub(r"[^a-z0-9]+", "-", scope.lower()).strip("-")
+              if scope_slug and scope_slug not in scopes and kind in preferred_types:
+                  scopes.append(scope_slug)
+              grouped.append((kind, scope, title))
+
+          selected = grouped[:5]
+          bullets = "\n".join(f"- `{kind}({scope})`: {title}" if scope else f"- `{kind}`: {title}" for kind, scope, title in selected)
+          if not bullets:
+              bullets = "- release-plz prepared this release from the current main branch changes"
+
+          labels = ["release"]
+          labels.extend(scopes[:3])
+          print("\n===LABELS===\n".join([
+              ",".join(labels),
+              bullets,
+          ]))
+          PY
+          )"
+
+          labels_csv="${summary%%$'\n===LABELS===\n'*}"
+          bullets="${summary#*$'\n===LABELS===\n'}"
+
+          python3 <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          labels = [label for label in os.environ["LABELS_CSV"].split(",") if label]
+          desired = {
+              "release": ("1d76db", "Automated release pull request"),
+              "cli": ("0e8a16", "CLI-facing release changes"),
+              "lsp": ("5319e7", "Language server changes"),
+              "vscode": ("0969da", "VS Code extension changes"),
+              "report": ("fbca04", "Reporting and output changes"),
+              "ci": ("bfd4f2", "CI or release workflow changes"),
+              "doctor": ("c5def5", "Doctor or handoff workflow changes"),
+          }
+
+          for label in labels:
+              color, description = desired.get(label, ("bfdadc", "Release-plz generated scope label"))
+              result = subprocess.run(
+                  [
+                      "gh", "label", "create", label,
+                      "--repo", repo,
+                      "--color", color,
+                      "--description", description,
+                  ],
+                  capture_output=True,
+                  text=True,
+              )
+              if result.returncode == 0:
+                  continue
+              if "already exists" in (result.stderr + result.stdout):
+                  continue
+              sys.stderr.write(result.stderr or result.stdout)
+              sys.exit(result.returncode)
+          PY
+        shell: bash
+      - name: Apply release PR labels
+        if: steps.release_pr.outputs.pr != '' && steps.release_pr.outputs.pr != 'null'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_PLZ_PR: ${{ steps.release_pr.outputs.pr }}
+        run: |
+          set -euo pipefail
+
+          pr_json="$RELEASE_PLZ_PR"
+          pr_number="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["number"])')"
+          version="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; releases=json.load(sys.stdin).get("releases", []); print(releases[0]["version"] if releases else "")')"
+
+          last_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          if [ -n "$last_tag" ]; then
+            subjects="$(git log "${last_tag}..HEAD" --pretty=%s)"
+          else
+            subjects="$(git log --pretty=%s)"
+          fi
+
+          export COMMIT_SUBJECTS="$subjects"
+          labels_csv="$(python3 <<'PY'
+          import os
+          import re
+
+          subjects = [line.strip() for line in os.environ.get("COMMIT_SUBJECTS", "").splitlines() if line.strip()]
+          preferred_types = {"feat", "fix", "perf", "refactor"}
+          scopes = []
+
+          for subject in subjects:
+              match = re.match(r"(?P<type>[a-z]+)(?:\((?P<scope>[^)]+)\))?:", subject)
+              if not match or match.group("type") not in preferred_types:
+                  continue
+              scope = (match.group("scope") or match.group("type")).strip()
+              scope_slug = re.sub(r"[^a-z0-9]+", "-", scope.lower()).strip("-")
+              if scope_slug and scope_slug not in scopes:
+                  scopes.append(scope_slug)
+
+          labels = ["release"]
+          labels.extend(scopes[:3])
+          print(",".join(labels))
+          PY
+          )"
+
+          gh pr edit "$pr_number" --add-label "$labels_csv"
+        shell: bash
+      - name: Comment release summary on PR
+        if: steps.release_pr.outputs.pr != '' && steps.release_pr.outputs.pr != 'null'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_PLZ_PR: ${{ steps.release_pr.outputs.pr }}
+        run: |
+          set -euo pipefail
+
+          pr_json="$RELEASE_PLZ_PR"
+          pr_number="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["number"])')"
+          version="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; releases=json.load(sys.stdin).get("releases", []); print(releases[0]["version"] if releases else "")')"
+
+          last_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          if [ -n "$last_tag" ]; then
+            subjects="$(git log "${last_tag}..HEAD" --pretty=%s)"
+          else
+            subjects="$(git log --pretty=%s)"
+          fi
+
+          export COMMIT_SUBJECTS="$subjects"
+          body="$(python3 <<'PY'
+          import os
+          import re
+
+          subjects = [line.strip() for line in os.environ.get("COMMIT_SUBJECTS", "").splitlines() if line.strip()]
+          lines = []
+          for subject in subjects[:5]:
+              match = re.match(r"(?P<type>[a-z]+)(?:\((?P<scope>[^)]+)\))?:\s*(?P<title>.+)", subject)
+              if not match:
+                  continue
+              kind = match.group("type")
+              scope = match.group("scope") or kind
+              title = match.group("title")
+              lines.append(f"- `{kind}({scope})`: {title}")
+
+          if not lines:
+              lines.append("- release-plz prepared this release from the current main branch changes")
+
+          version = os.environ.get("RELEASE_VERSION", "")
+          print(
+              "\n".join(
+                  [
+                      "<!-- verifyos-release-summary -->",
+                      f"## Release summary for v{version}",
+                      "",
+                      "Top changes in this release PR:",
+                      *lines,
+                  ]
+              )
+          )
+          PY
+          )"
+
+          existing_id="$(
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${pr_number}/comments" \
+              --jq '.[] | select(.body | contains("<!-- verifyos-release-summary -->")) | .id' \
+              | head -n 1
+          )"
+
+          if [ -n "$existing_id" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${existing_id}" \
+              --method PATCH \
+              -f body="$body" >/dev/null
+          else
+            gh pr comment "$pr_number" --body "$body"
+          fi
+        shell: bash

@@ -66,7 +66,7 @@ fn workflow_uploads_expected_verifyos_outputs() {
 }
 
 #[test]
-fn release_workflow_renames_release_pr_branch_with_versioned_slug() {
+fn release_workflow_enriches_release_pr_metadata() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join(".github")
         .join("workflows")
@@ -79,4 +79,10 @@ fn release_workflow_renames_release_pr_branch_with_versioned_slug() {
     assert!(config.contains("pr_branch_prefix = \"release-plz-\""));
     assert!(!workflow.contains("Rename release PR branch"));
     assert!(!workflow.contains("branches/$encoded_branch/rename"));
+    assert!(workflow.contains("Label and summarize release PR"));
+    assert!(workflow.contains("Apply release PR labels"));
+    assert!(workflow.contains("Comment release summary on PR"));
+    assert!(workflow.contains("\"gh\", \"label\", \"create\""));
+    assert!(workflow.contains("gh pr edit \"$pr_number\" --add-label"));
+    assert!(workflow.contains("<!-- verifyos-release-summary -->"));
 }
