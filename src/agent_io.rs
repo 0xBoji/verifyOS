@@ -147,6 +147,10 @@ pub fn infer_existing_command_hints(layout: &AgentAssetLayout) -> CommandHints {
         profile: None,
         shell_script: layout.next_steps_script_path.exists(),
         fix_prompt_path: Some(layout.fix_prompt_path.display().to_string()),
+        repair_plan_path: layout
+            .repair_plan_path
+            .exists()
+            .then(|| layout.repair_plan_path.display().to_string()),
         pr_brief_path: layout
             .pr_brief_path
             .exists()

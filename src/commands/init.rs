@@ -186,6 +186,7 @@ fn build_command_hints(
         profile: Some(profile_key(init_profile)),
         shell_script,
         fix_prompt_path: fix_prompt.then(|| effective_fix_prompt_path.display().to_string()),
+        repair_plan_path: None,
         pr_brief_path: None,
         pr_comment_path: None,
     }

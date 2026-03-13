@@ -266,6 +266,7 @@ fn repair_doctor_setup(
         ),
         shell_script: true,
         fix_prompt_path: Some(layout.fix_prompt_path.display().to_string()),
+        repair_plan_path: Some(layout.repair_plan_path.display().to_string()),
         pr_brief_path: should_open_pr_brief.then(|| layout.pr_brief_path.display().to_string()),
         pr_comment_path: should_open_pr_comment
             .then(|| layout.pr_comment_path.display().to_string()),
@@ -292,6 +293,17 @@ fn repair_doctor_setup(
     if options.policy.should_repair_pr_comment() && should_open_pr_comment {
         write_pr_comment_file(&layout.pr_comment_path, &pack, &command_hints)?;
     }
+    let repair_plan = build_repair_plan(layout, &options.policy);
+    let repair_plan_context =
+        build_plan_context(layout, from_scan, baseline_path, None, &options.policy);
+    write_plan_markdown(
+        &layout.repair_plan_path,
+        &DoctorReport {
+            checks: Vec::new(),
+            repair_plan,
+            plan_context: Some(repair_plan_context),
+        },
+    )?;
 
     Ok(())
 }

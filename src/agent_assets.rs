@@ -9,6 +9,7 @@ pub const AGENT_PACK_JSON_NAME: &str = "agent-pack.json";
 pub const AGENT_PACK_MARKDOWN_NAME: &str = "agent-pack.md";
 pub const NEXT_STEPS_SCRIPT_NAME: &str = "next-steps.sh";
 pub const FIX_PROMPT_NAME: &str = "fix-prompt.md";
+pub const REPAIR_PLAN_NAME: &str = "repair-plan.md";
 pub const PR_BRIEF_NAME: &str = "pr-brief.md";
 pub const PR_COMMENT_NAME: &str = "pr-comment.md";
 
@@ -49,6 +50,7 @@ pub struct AgentAssetLayout {
     pub agent_pack_markdown_path: PathBuf,
     pub next_steps_script_path: PathBuf,
     pub fix_prompt_path: PathBuf,
+    pub repair_plan_path: PathBuf,
     pub pr_brief_path: PathBuf,
     pub pr_comment_path: PathBuf,
 }
@@ -66,6 +68,7 @@ impl AgentAssetLayout {
             agent_pack_markdown_path: agent_bundle_dir.join(AGENT_PACK_MARKDOWN_NAME),
             next_steps_script_path: agent_bundle_dir.join(NEXT_STEPS_SCRIPT_NAME),
             fix_prompt_path: output_dir.join(FIX_PROMPT_NAME),
+            repair_plan_path: output_dir.join(REPAIR_PLAN_NAME),
             pr_brief_path: output_dir.join(PR_BRIEF_NAME),
             pr_comment_path: output_dir.join(PR_COMMENT_NAME),
             agent_bundle_dir,

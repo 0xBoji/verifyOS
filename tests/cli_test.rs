@@ -1206,6 +1206,7 @@ fn test_doctor_fix_from_scan_can_generate_pr_comment() {
     let agents =
         std::fs::read_to_string(output_dir.join("AGENTS.md")).expect("agents file should exist");
     assert!(agents.contains("pr-comment.md"));
+    assert!(agents.contains("repair-plan.md"));
     assert!(agents.contains("--open-pr-comment"));
 
     let comment =

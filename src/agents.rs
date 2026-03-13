@@ -15,6 +15,7 @@ pub struct CommandHints {
     pub profile: Option<String>,
     pub shell_script: bool,
     pub fix_prompt_path: Option<String>,
+    pub repair_plan_path: Option<String>,
     pub pr_brief_path: Option<String>,
     pub pr_comment_path: Option<String>,
 }
@@ -146,6 +147,9 @@ fn append_next_commands(out: &mut String, hints: &CommandHints) {
     }
     if let Some(prompt_path) = hints.fix_prompt_path.as_deref() {
         out.push_str(&format!("- Agent fix prompt: `{}`\n\n", prompt_path));
+    }
+    if let Some(repair_plan_path) = hints.repair_plan_path.as_deref() {
+        out.push_str(&format!("- Repair plan: `{}`\n\n", repair_plan_path));
     }
     if let Some(pr_brief_path) = hints.pr_brief_path.as_deref() {
         out.push_str(&format!("- PR brief: `{}`\n\n", pr_brief_path));
@@ -626,6 +630,7 @@ Keep this
             profile: Some("basic".to_string()),
             shell_script: true,
             fix_prompt_path: Some(".verifyos-agent/fix-prompt.md".to_string()),
+            repair_plan_path: Some(".verifyos/repair-plan.md".to_string()),
             pr_brief_path: Some(".verifyos-agent/pr-brief.md".to_string()),
             pr_comment_path: Some(".verifyos-agent/pr-comment.md".to_string()),
         };
@@ -638,6 +643,7 @@ Keep this
         assert!(block.contains("voc doctor --output-dir .verifyos --fix --from-scan examples/bad_app.ipa --profile basic --baseline baseline.json --open-pr-brief"));
         assert!(block.contains(".verifyos-agent/next-steps.sh"));
         assert!(block.contains(".verifyos-agent/fix-prompt.md"));
+        assert!(block.contains(".verifyos/repair-plan.md"));
         assert!(block.contains(".verifyos-agent/pr-brief.md"));
         assert!(block.contains(".verifyos-agent/pr-comment.md"));
     }
