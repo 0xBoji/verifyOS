@@ -39,6 +39,7 @@ The App Store Connect validation step is historically a "black box" that costs d
 - **Signing**: Ensures embedded frameworks/extensions are signed with the same Team ID as the app binary.
 - **CI-friendly reports**: Outputs `table`, `json`, or `sarif` with evidence and remediation recommendations.
 - **Bundle size insights**: `voc analyze-size` highlights the largest files and category hotspots in `.ipa` or `.app` bundles.
+- **Editor diagnostics**: `voc lsp` powers a thin VS Code extension so `Info.plist` and `PrivacyInfo.xcprivacy` findings show up in the Problems pane.
 
 ## Installation
 
@@ -49,6 +50,23 @@ cargo install verifyos-cli
 ```
 
 This installs the `voc` binary for the CLI.
+
+### VS Code extension
+
+This repo also includes a thin VS Code extension in [`editors/vscode`](/Volumes/0xbojissd/learn/rust/verifyOS-cli/editors/vscode). The extension starts `voc lsp` instead of re-implementing rules in TypeScript, so the Rust CLI stays the single source of truth for diagnostics.
+
+For local development:
+
+```bash
+cd editors/vscode
+npm ci
+npm run compile
+```
+
+For packaging and publishing:
+
+- `npm run package` builds a `.vsix`
+- `.github/workflows/vscode-extension.yml` packages the extension on tags and can publish to the VS Code Marketplace and Open VSX when credentials are configured
 
 ### From Release (via curl)
 
@@ -630,14 +648,18 @@ Analysis complete!
 
 `verifyOS-cli` is organized as a layered scanner plus an AI-agent handoff system:
 
-- **`src/main.rs`**: CLI entrypoint, subcommands (`scan`, `init`, `doctor`), output routing, and exit policy.
+- **`src/main.rs`**: CLI entrypoint, subcommands (`scan`, `init`, `doctor`, `handoff`, `pr-comment`, `analyze-size`, `lsp`), output routing, and exit policy.
 - **`src/core/`**: Scan orchestration, rule execution timing, and artifact-context lifecycle.
 - **`src/parsers/`**: Low-level readers for `.ipa`, `.app`, `Info.plist`, provisioning profiles, Mach-O usage/signing/SDK scans, and related bundle metadata.
 - **`src/rules/`**: Trait-based App Store review rules grouped by concern such as privacy, entitlements, signing, ATS, metadata, and bundling.
 - **`src/report/`**: Normalized report model plus renderers for table, JSON, SARIF, Markdown, agent-pack JSON, and agent-pack Markdown.
 - **`src/profiles.rs`**: Rule inventory, default profile membership, and CLI-facing rule metadata.
 - **`src/agents.rs`**: `AGENTS.md` managed block generation, current-risk summaries, next-step commands, and fix-prompt rendering.
-- **`src/doctor.rs`**: Project self-checks for config, `AGENTS.md`, referenced assets, and repair-oriented setup validation.
+- **`src/doctor.rs`**: Project self-checks for config, `AGENTS.md`, and repair-oriented setup validation.
+- **`src/commands/`**: Command-specific logic for `init`, `doctor`, `handoff`, `pr-comment`, `analyze-size`, and `lsp`.
+- **`src/commands/lsp.rs`**: The language server that turns scan findings into editor diagnostics for `Info.plist` and `PrivacyInfo.xcprivacy`.
+- **`src/size_analysis.rs`**: Implementation for the `analyze-size` feature, breaking down the app bundle's space consumption.
+- **`editors/vscode/`**: Thin editor client that launches `voc lsp`, exposes a clean UX, and relies on the Rust scanner for real diagnostics.
 - **`tests/`**: CLI, report, config, and rule-level regression coverage for both normal scans and agent workflows.
 
 The design goal is to keep scanning concerns, report rendering, and AI-agent onboarding separate enough that we can keep adding rules without tangling the developer workflow around them.
@@ -676,6 +698,7 @@ The design goal is to keep scanning concerns, report rendering, and AI-agent onb
    - `fix-prompt.md`
    - `pr-brief.md` when `--open-pr-brief` is enabled
    - `pr-comment.md` when `--open-pr-comment` is enabled
+   - `repair-plan.md` when `--plan-out` is used
 8. **CI / PR integration**
    The reusable workflow `.github/workflows/voc-analysis.yml` runs scans in GitHub Actions, uploads SARIF and agent assets, and can post a sticky PR summary comment.
 9. **Repair / refresh loop**
