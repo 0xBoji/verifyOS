@@ -39,7 +39,7 @@ The App Store Connect validation step is historically a "black box" that costs d
 - **Signing**: Ensures embedded frameworks/extensions are signed with the same Team ID as the app binary.
 - **CI-friendly reports**: Outputs `table`, `json`, or `sarif` with evidence and remediation recommendations.
 - **Bundle size insights**: `voc analyze-size` highlights the largest files and category hotspots in `.ipa` or `.app` bundles.
-- **Editor diagnostics**: `voc lsp` powers a thin VS Code extension so `Info.plist` and `PrivacyInfo.xcprivacy` findings show up in the Problems pane.
+- **Editor diagnostics**: `voc lsp` powers a VS Code extension with a clean Action Center sidebar so `Info.plist` and `PrivacyInfo.xcprivacy` findings show up in the Problems pane without leaving the editor.
 
 ## Installation
 
@@ -53,7 +53,7 @@ This installs the `voc` binary for the CLI.
 
 ### VS Code extension
 
-This repo also includes a thin VS Code extension in [`editors/vscode`](/Volumes/0xbojissd/learn/rust/verifyOS-cli/editors/vscode). The extension starts `voc lsp` instead of re-implementing rules in TypeScript, so the Rust CLI stays the single source of truth for diagnostics. Marketplace builds can also bundle prebuilt `voc` binaries for zero-config startup on supported platforms.
+This repo also includes a VS Code extension in [`editors/vscode`](/Volumes/0xbojissd/learn/rust/verifyOS-cli/editors/vscode). The extension starts `voc lsp` instead of re-implementing rules in TypeScript, so the Rust CLI stays the single source of truth for diagnostics. It also adds a small sidebar Action Center for scans, handoff generation, output access, and language-server status. Marketplace builds can bundle prebuilt `voc` binaries for zero-config startup on supported platforms.
 
 For local development:
 
