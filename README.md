@@ -390,6 +390,12 @@ The workflow generates and uploads:
 
 When `comment_on_pr` is enabled and a PR number is available, the workflow also updates a sticky PR comment from `pr-comment.md` when present, with a safe fallback to an inline summary if that file is missing.
 
+You can build the same sticky body locally or in custom CI steps with:
+
+```bash
+voc pr-comment --output-dir .verifyos-ci --scan-exit 1 --doctor-exit 0 --sticky-marker
+```
+
 ### Output Formats
 
 Table (default):

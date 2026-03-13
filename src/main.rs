@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use verifyos_cli::agents::{
     render_fix_prompt, render_pr_brief, render_pr_comment, write_agents_file, CommandHints,
 };
+use verifyos_cli::ci_comment::render_workflow_pr_comment;
 use verifyos_cli::config::{load_file_config, resolve_runtime_config, CliOverrides};
 use verifyos_cli::core::engine::Engine;
 use verifyos_cli::doctor::{run_doctor, DoctorReport, DoctorStatus};
@@ -140,6 +141,8 @@ enum Commands {
     Init(InitArgs),
     /// Verify verifyOS-cli config and generated agent assets
     Doctor(DoctorArgs),
+    /// Render a sticky PR comment body from an output directory
+    PrComment(PrCommentArgs),
 }
 
 #[derive(Debug, Parser)]
@@ -222,6 +225,29 @@ struct DoctorArgs {
     /// Generate pr-comment.md for sticky PR comments or manual GitHub updates
     #[arg(long)]
     open_pr_comment: bool,
+}
+
+#[derive(Debug, Parser)]
+struct PrCommentArgs {
+    /// Output root that contains doctor.json, pr-comment.md, and .verifyos-agent/
+    #[arg(long)]
+    output_dir: Option<PathBuf>,
+
+    /// Optional file path to write the generated comment body
+    #[arg(long)]
+    output: Option<PathBuf>,
+
+    /// Scan exit code to include in fallback summaries
+    #[arg(long, default_value_t = 0)]
+    scan_exit: i32,
+
+    /// Doctor exit code to include in fallback summaries
+    #[arg(long, default_value_t = 0)]
+    doctor_exit: i32,
+
+    /// Prefix the body with the sticky comment marker used by GitHub workflows
+    #[arg(long)]
+    sticky_marker: bool,
 }
 
 fn main() -> Result<()> {
@@ -373,6 +399,24 @@ fn main() -> Result<()> {
         render_doctor_report(&report, doctor_format)?;
         if report.has_failures() {
             std::process::exit(1);
+        }
+        return Ok(());
+    }
+    if let Some(Commands::PrComment(pr_comment)) = args.command {
+        let output_dir = pr_comment.output_dir.unwrap_or_else(|| PathBuf::from("."));
+        let body = render_workflow_pr_comment(
+            &output_dir,
+            pr_comment.scan_exit,
+            pr_comment.doctor_exit,
+            pr_comment.sticky_marker,
+        )?;
+        if let Some(path) = pr_comment.output.as_deref() {
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).into_diagnostic()?;
+            }
+            std::fs::write(path, body).into_diagnostic()?;
+        } else {
+            println!("{body}");
         }
         return Ok(());
     }

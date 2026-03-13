@@ -1,4 +1,5 @@
 pub mod agents;
+pub mod ci_comment;
 pub mod config;
 pub mod core;
 pub mod doctor;

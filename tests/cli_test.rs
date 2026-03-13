@@ -154,6 +154,71 @@ fn test_show_rule_json_output() {
 }
 
 #[test]
+fn test_pr_comment_subcommand_prefers_existing_comment_file() {
+    let dir = tempdir().expect("temp dir");
+    let output_dir = dir.path().join("artifacts");
+    std::fs::create_dir_all(&output_dir).expect("create output dir");
+    std::fs::write(
+        output_dir.join("pr-comment.md"),
+        "## verifyOS review summary\n\n- Findings in scope: `1`\n",
+    )
+    .expect("write comment");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "pr-comment",
+            "--output-dir",
+            output_dir.to_str().expect("utf8 output dir"),
+            "--sticky-marker",
+        ])
+        .output()
+        .expect("pr-comment should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("utf8");
+    assert!(stdout.contains("<!-- voc-analysis-comment -->"));
+    assert!(stdout.contains("## verifyOS review summary"));
+}
+
+#[test]
+fn test_pr_comment_subcommand_falls_back_to_reports() {
+    let dir = tempdir().expect("temp dir");
+    let output_dir = dir.path().join("artifacts");
+    let agent_dir = output_dir.join(".verifyos-agent");
+    std::fs::create_dir_all(&agent_dir).expect("create agent dir");
+    std::fs::write(
+        agent_dir.join("agent-pack.json"),
+        r#"{"generated_at_unix":1,"total_findings":2,"findings":[]}"#,
+    )
+    .expect("write agent pack");
+    std::fs::write(
+        output_dir.join("doctor.json"),
+        r#"{"checks":[{"name":"Config","status":"Pass","detail":"ok"}]}"#,
+    )
+    .expect("write doctor report");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "pr-comment",
+            "--output-dir",
+            output_dir.to_str().expect("utf8 output dir"),
+            "--scan-exit",
+            "1",
+            "--doctor-exit",
+            "0",
+        ])
+        .output()
+        .expect("pr-comment should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("utf8");
+    assert!(stdout.contains("## voc analysis"));
+    assert!(stdout.contains("Findings: **2**"));
+    assert!(stdout.contains("Scan exit code: `1`"));
+    assert!(stdout.contains("Doctor exit code: `0`"));
+}
+
+#[test]
 fn test_agent_pack_writes_fix_json() {
     let dir = tempdir().expect("temp dir");
     let output_path = dir.path().join("fixes.json");
