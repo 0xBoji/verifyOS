@@ -65,6 +65,23 @@ enum AgentPackOutput {
     Bundle,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, ValueEnum)]
+enum RepairTarget {
+    Agents,
+    AgentBundle,
+    FixPrompt,
+    PrBrief,
+    PrComment,
+}
+
+#[derive(Debug, Clone)]
+struct DoctorRepairOptions {
+    profile: Profile,
+    open_pr_brief: bool,
+    open_pr_comment: bool,
+    repair_targets: HashSet<RepairTarget>,
+}
+
 #[derive(Parser, Debug)]
 #[command(
     author,
@@ -225,6 +242,10 @@ struct DoctorArgs {
     /// Generate pr-comment.md for sticky PR comments or manual GitHub updates
     #[arg(long)]
     open_pr_comment: bool,
+
+    /// Only repair selected outputs (repeat or comma-separate)
+    #[arg(long, value_enum, value_delimiter = ',', num_args = 1..)]
+    repair: Vec<RepairTarget>,
 }
 
 #[derive(Debug, Parser)]
@@ -380,19 +401,25 @@ fn main() -> Result<()> {
             .agents
             .or(doctor_defaults.agents.clone())
             .unwrap_or_else(|| output_dir.join("AGENTS.md"));
-        let should_fix = doctor.fix || doctor_defaults.fix.unwrap_or(false);
+        let repair_targets: HashSet<RepairTarget> = doctor.repair.iter().copied().collect();
+        let should_fix =
+            doctor.fix || doctor_defaults.fix.unwrap_or(false) || !repair_targets.is_empty();
         let open_pr_brief = doctor.open_pr_brief || doctor_defaults.open_pr_brief.unwrap_or(false);
         let open_pr_comment =
             doctor.open_pr_comment || doctor_defaults.open_pr_comment.unwrap_or(false);
         if should_fix {
+            let repair_options = DoctorRepairOptions {
+                profile: doctor_profile,
+                open_pr_brief,
+                open_pr_comment,
+                repair_targets,
+            };
             repair_doctor_setup(
                 &output_dir,
                 &agents_path,
                 doctor.from_scan.as_deref(),
                 doctor.baseline.as_deref(),
-                doctor_profile,
-                open_pr_brief,
-                open_pr_comment,
+                &repair_options,
             )?;
         }
         let report = run_doctor(doctor.config.as_deref(), &agents_path);
@@ -661,9 +688,7 @@ fn repair_doctor_setup(
     agents_path: &std::path::Path,
     from_scan: Option<&std::path::Path>,
     baseline_path: Option<&std::path::Path>,
-    profile: Profile,
-    open_pr_brief: bool,
-    open_pr_comment: bool,
+    options: &DoctorRepairOptions,
 ) -> Result<()> {
     std::fs::create_dir_all(output_dir).into_diagnostic()?;
 
@@ -677,11 +702,21 @@ fn repair_doctor_setup(
     std::fs::create_dir_all(&agent_pack_dir).into_diagnostic()?;
 
     let inferred_hints = infer_existing_command_hints(output_dir, agents_path);
-    let should_open_pr_brief = open_pr_brief || inferred_hints.pr_brief_path.is_some();
-    let should_open_pr_comment = open_pr_comment || inferred_hints.pr_comment_path.is_some();
+    let selected = &options.repair_targets;
+    let repair_all = selected.is_empty();
+    let should_repair_agents = repair_all || selected.contains(&RepairTarget::Agents);
+    let should_repair_bundle = repair_all || selected.contains(&RepairTarget::AgentBundle);
+    let should_repair_fix_prompt = repair_all || selected.contains(&RepairTarget::FixPrompt);
+    let should_repair_pr_brief = repair_all || selected.contains(&RepairTarget::PrBrief);
+    let should_repair_pr_comment = repair_all || selected.contains(&RepairTarget::PrComment);
+    let should_open_pr_brief =
+        options.open_pr_brief || inferred_hints.pr_brief_path.is_some() || should_repair_pr_brief;
+    let should_open_pr_comment = options.open_pr_comment
+        || inferred_hints.pr_comment_path.is_some()
+        || should_repair_pr_comment;
 
     let pack = if let Some(app_path) = from_scan {
-        run_scan_for_agent_pack(app_path, profile, baseline_path)?
+        run_scan_for_agent_pack(app_path, options.profile, baseline_path)?
     } else {
         load_agent_pack(&agent_pack_json).unwrap_or_else(empty_agent_pack)
     };
@@ -700,9 +735,9 @@ fn repair_doctor_setup(
         agent_pack_dir: Some(agent_pack_dir.display().to_string()),
         profile: Some(
             from_scan
-                .map(|_| profile_key(profile))
+                .map(|_| profile_key(options.profile))
                 .or(inferred_hints.profile)
-                .unwrap_or_else(|| profile_key(profile)),
+                .unwrap_or_else(|| profile_key(options.profile)),
         ),
         shell_script: true,
         fix_prompt_path: Some(fix_prompt_path.display().to_string()),
@@ -710,19 +745,25 @@ fn repair_doctor_setup(
         pr_comment_path: should_open_pr_comment.then(|| pr_comment_path.display().to_string()),
     };
 
-    write_agents_file(
-        agents_path,
-        Some(&pack),
-        Some(&agent_pack_dir),
-        Some(&command_hints),
-    )?;
-    write_agent_pack(&agent_pack_dir, &pack, AgentPackFormat::Bundle)?;
-    write_next_steps_script(&script_path, &command_hints)?;
-    write_fix_prompt_file(&fix_prompt_path, &pack, &command_hints)?;
-    if should_open_pr_brief {
+    if should_repair_agents {
+        write_agents_file(
+            agents_path,
+            Some(&pack),
+            Some(&agent_pack_dir),
+            Some(&command_hints),
+        )?;
+    }
+    if should_repair_bundle {
+        write_agent_pack(&agent_pack_dir, &pack, AgentPackFormat::Bundle)?;
+        write_next_steps_script(&script_path, &command_hints)?;
+    }
+    if should_repair_fix_prompt {
+        write_fix_prompt_file(&fix_prompt_path, &pack, &command_hints)?;
+    }
+    if should_repair_pr_brief && should_open_pr_brief {
         write_pr_brief_file(&pr_brief_path, &pack, &command_hints)?;
     }
-    if should_open_pr_comment {
+    if should_repair_pr_comment && should_open_pr_comment {
         write_pr_comment_file(&pr_comment_path, &pack, &command_hints)?;
     }
 

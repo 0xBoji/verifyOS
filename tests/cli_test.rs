@@ -806,6 +806,91 @@ fn test_doctor_fix_bootstraps_missing_agent_assets() {
 }
 
 #[test]
+fn test_doctor_fix_can_repair_only_pr_comment() {
+    let dir = tempdir().expect("temp dir");
+    let output_dir = dir.path().join("artifacts");
+
+    let initial = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "doctor",
+            "--output-dir",
+            output_dir.to_str().expect("utf8 output dir"),
+            "--fix",
+            "--from-scan",
+            get_example_path("bad_app.ipa")
+                .to_str()
+                .expect("utf8 app path"),
+            "--profile",
+            "basic",
+        ])
+        .output()
+        .expect("initial doctor run should succeed");
+    assert!(initial.status.success());
+    let fix_prompt_mtime = std::fs::metadata(output_dir.join("fix-prompt.md"))
+        .expect("fix prompt exists")
+        .modified()
+        .expect("mtime");
+
+    let doctor = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "doctor",
+            "--output-dir",
+            output_dir.to_str().expect("utf8 output dir"),
+            "--fix",
+            "--repair",
+            "pr-comment",
+        ])
+        .output()
+        .expect("doctor selective pr-comment repair should run");
+
+    assert!(doctor.status.success());
+    assert!(output_dir.join("pr-comment.md").exists());
+    let next_fix_prompt_mtime = std::fs::metadata(output_dir.join("fix-prompt.md"))
+        .expect("fix prompt still exists")
+        .modified()
+        .expect("mtime");
+    assert_eq!(fix_prompt_mtime, next_fix_prompt_mtime);
+}
+
+#[test]
+fn test_doctor_fix_can_repair_only_agent_bundle() {
+    let dir = tempdir().expect("temp dir");
+    let output_dir = dir.path().join("artifacts");
+
+    let initial = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "doctor",
+            "--output-dir",
+            output_dir.to_str().expect("utf8 output dir"),
+            "--fix",
+        ])
+        .output()
+        .expect("initial doctor run should succeed");
+    assert!(initial.status.success());
+
+    std::fs::remove_dir_all(output_dir.join(".verifyos-agent")).expect("remove agent bundle");
+    std::fs::remove_file(output_dir.join("fix-prompt.md")).expect("remove fix prompt");
+
+    let doctor = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "doctor",
+            "--output-dir",
+            output_dir.to_str().expect("utf8 output dir"),
+            "--fix",
+            "--repair",
+            "agent-bundle",
+        ])
+        .output()
+        .expect("doctor selective agent-bundle repair should run");
+
+    assert!(!doctor.status.success());
+    assert!(output_dir.join(".verifyos-agent/agent-pack.json").exists());
+    assert!(output_dir.join(".verifyos-agent/agent-pack.md").exists());
+    assert!(output_dir.join(".verifyos-agent/next-steps.sh").exists());
+    assert!(!output_dir.join("fix-prompt.md").exists());
+}
+
+#[test]
 fn test_doctor_fix_repairs_managed_block_paths_and_keeps_custom_notes() {
     let dir = tempdir().expect("temp dir");
     let output_dir = dir.path().join("artifacts");

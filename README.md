@@ -282,6 +282,13 @@ Repair a broken or missing local agent setup in place:
 voc doctor --output-dir .verifyos --fix
 ```
 
+Repair only selected outputs:
+
+```bash
+voc doctor --output-dir .verifyos --fix --repair pr-comment
+voc doctor --output-dir .verifyos --fix --repair agent-bundle
+```
+
 Repair and refresh the setup from a fresh scan:
 
 ```bash
@@ -315,6 +322,8 @@ When `--fix` is enabled, `voc doctor` will:
 - recreate `.verifyos-agent/next-steps.sh`
 - recreate `fix-prompt.md`
 - repair the managed `verifyos-cli` block so its pointers line up with the chosen output root again
+
+`--repair` lets you scope that work to just the targets you want: `agents`, `agent-bundle`, `fix-prompt`, `pr-brief`, or `pr-comment`.
 
 When `--fix --from-scan` is enabled, `voc doctor` does the same repair work but uses a fresh app scan to repopulate:
 - `Current Project Risks`
