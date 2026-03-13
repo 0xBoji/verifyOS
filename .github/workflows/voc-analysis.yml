@@ -35,11 +35,24 @@ on:
         required: true
         default: ".verifyos-ci"
         type: string
+      doctor_repair:
+        description: "Optional selective repair targets for voc doctor (comma-separated)"
+        required: false
+        default: ""
+        type: string
       comment_on_pr:
         description: "Post a PR summary comment when running in PR context"
         required: true
         default: true
         type: boolean
+      comment_mode:
+        description: "PR comment body mode"
+        required: true
+        default: "sticky"
+        type: choice
+        options:
+          - sticky
+          - plain
       pr_number:
         description: "Optional PR number for manual runs"
         required: false
@@ -66,10 +79,18 @@ on:
         required: false
         default: ".verifyos-ci"
         type: string
+      doctor_repair:
+        required: false
+        default: ""
+        type: string
       comment_on_pr:
         required: false
         default: true
         type: boolean
+      comment_mode:
+        required: false
+        default: "sticky"
+        type: string
       pr_number:
         required: false
         default: ""
@@ -147,6 +168,19 @@ jobs:
             comment_on_pr="true"
           fi
 
+          comment_mode="${{ github.event.inputs.comment_mode }}"
+          if [ -z "$comment_mode" ]; then
+            comment_mode="${{ inputs.comment_mode }}"
+          fi
+          if [ -z "$comment_mode" ]; then
+            comment_mode="sticky"
+          fi
+
+          doctor_repair="${{ github.event.inputs.doctor_repair }}"
+          if [ -z "$doctor_repair" ]; then
+            doctor_repair="${{ inputs.doctor_repair }}"
+          fi
+
           pr_number="${{ github.event.inputs.pr_number }}"
           if [ -z "$pr_number" ]; then
             pr_number="${{ inputs.pr_number }}"
@@ -158,7 +192,9 @@ jobs:
             echo "BASELINE_PATH=$baseline_path"
             echo "PROFILE=$profile"
             echo "FAIL_ON=$fail_on"
+            echo "DOCTOR_REPAIR=$doctor_repair"
             echo "COMMENT_ON_PR=$comment_on_pr"
+            echo "COMMENT_MODE=$comment_mode"
             echo "PR_NUMBER=$pr_number"
           } >> "$GITHUB_ENV"
 
@@ -205,6 +241,9 @@ jobs:
           if [ -n "$BASELINE_PATH" ]; then
             doctor_cmd+=(--baseline "$BASELINE_PATH")
           fi
+          if [ -n "$DOCTOR_REPAIR" ]; then
+            doctor_cmd+=(--repair "$DOCTOR_REPAIR")
+          fi
           set +e
           "${doctor_cmd[@]}" > "$OUTPUT_DIR/doctor.json"
           doctor_exit=$?
@@ -236,12 +275,18 @@ jobs:
         if: always() && env.COMMENT_ON_PR == 'true' && (github.event_name == 'pull_request' || env.PR_NUMBER != '')
         shell: bash
         run: |
-          ./target/release/voc pr-comment \
-            --output-dir "$OUTPUT_DIR" \
-            --scan-exit "${{ steps.scan.outputs.scan_exit }}" \
-            --doctor-exit "${{ steps.scan.outputs.doctor_exit }}" \
-            --sticky-marker \
+          pr_comment_cmd=(
+            ./target/release/voc
+            pr-comment
+            --output-dir "$OUTPUT_DIR"
+            --scan-exit "${{ steps.scan.outputs.scan_exit }}"
+            --doctor-exit "${{ steps.scan.outputs.doctor_exit }}"
             --output "$OUTPUT_DIR/pr-comment-body.md"
+          )
+          if [ "$COMMENT_MODE" = "sticky" ]; then
+            pr_comment_cmd+=(--sticky-marker)
+          fi
+          "${pr_comment_cmd[@]}"
 
       - name: Comment PR summary
         if: always() && env.COMMENT_ON_PR == 'true' && (github.event_name == 'pull_request' || env.PR_NUMBER != '')

@@ -276,6 +276,12 @@ Check an output root created by `voc init --output-dir`:
 voc doctor --output-dir .verifyos
 ```
 
+Show a repair plan first without rewriting anything:
+
+```bash
+voc doctor --output-dir .verifyos --repair pr-comment --plan --format json
+```
+
 Repair a broken or missing local agent setup in place:
 
 ```bash
@@ -307,11 +313,17 @@ Generate a shorter PR comment draft for sticky comments or manual updates:
 voc doctor --output-dir .verifyos --fix --from-scan path/to/YourApp.ipa --profile basic --open-pr-comment
 ```
 
+Use a specific report file as the freshness source:
+
+```bash
+voc doctor --output-dir .verifyos --freshness-against report.json
+```
+
 `voc doctor` validates:
 - config parsing
 - `AGENTS.md` presence
 - referenced agent assets like `agent-pack.json`, `agent-pack.md`, and `next-steps.sh`
-- whether generated agent assets look stale compared with the newest `report.json` or `report.sarif` in the output root
+- whether generated agent assets look stale compared with the newest `report.json` or `report.sarif` in the output root, or a file passed through `--freshness-against`
 - sample `voc` commands inside `AGENTS.md`
 - `next-steps.sh` command health, including whether follow-up flags like `--open-pr-brief` and `--open-pr-comment` still match the managed block
 
@@ -324,6 +336,8 @@ When `--fix` is enabled, `voc doctor` will:
 - repair the managed `verifyos-cli` block so its pointers line up with the chosen output root again
 
 `--repair` lets you scope that work to just the targets you want: `agents`, `agent-bundle`, `fix-prompt`, `pr-brief`, or `pr-comment`.
+
+`--plan` adds a repair preview so you can see which files would be rebuilt before you run a write operation.
 
 When `--fix --from-scan` is enabled, `voc doctor` does the same repair work but uses a fresh app scan to repopulate:
 - `Current Project Risks`
@@ -382,7 +396,9 @@ jobs:
       profile: full
       fail_on: error
       output_dir: .verifyos-ci
+      doctor_repair: pr-comment
       comment_on_pr: true
+      comment_mode: sticky
       pr_number: ${{ github.event.pull_request.number }}
 ```
 
@@ -398,6 +414,8 @@ The workflow generates and uploads:
 - `.verifyos-agent/next-steps.sh`
 
 When `comment_on_pr` is enabled and a PR number is available, the workflow also updates a sticky PR comment from `pr-comment.md` when present, with a safe fallback to an inline summary if that file is missing.
+
+`doctor_repair` lets the workflow scope `voc doctor --fix` to specific outputs such as `pr-comment` or `agent-bundle`. `comment_mode` controls whether `voc pr-comment` emits a sticky marker (`sticky`) or a plain body (`plain`).
 
 You can build the same sticky body locally or in custom CI steps with:
 
