@@ -105,11 +105,7 @@ fn collect_files(
         let metadata = entry
             .metadata()
             .map_err(|err| miette::miette!("Failed to stat {}: {}", path.display(), err))?;
-        let relative = path
-            .strip_prefix(root)
-            .unwrap_or(&path)
-            .display()
-            .to_string();
+        let relative = normalized_relative_path(root, &path);
         entries.push(SizeEntry {
             path: relative,
             category: classify_path(root, &path).to_string(),
@@ -212,6 +208,15 @@ fn classify_path(root: &Path, path: &Path) -> &'static str {
     }
 
     "resource"
+}
+
+fn normalized_relative_path(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .components()
+        .map(|part| part.as_os_str().to_string_lossy().to_string())
+        .collect::<Vec<String>>()
+        .join("/")
 }
 
 #[cfg(test)]
