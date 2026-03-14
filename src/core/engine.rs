@@ -35,11 +35,15 @@ pub struct EngineRun {
 
 pub struct Engine {
     rules: Vec<Box<dyn AppStoreRule>>,
+    pub xcode_project: Option<crate::parsers::xcode_parser::XcodeProject>,
 }
 
 impl Engine {
     pub fn new() -> Self {
-        Self { rules: Vec::new() }
+        Self {
+            rules: Vec::new(),
+            xcode_project: None,
+        }
     }
 
     pub fn register_rule(&mut self, rule: Box<dyn AppStoreRule>) {
@@ -48,7 +52,13 @@ impl Engine {
 
     pub fn run<P: AsRef<Path>>(&self, ipa_path: P) -> Result<EngineRun, OrchestratorError> {
         let run_started = Instant::now();
-        let extracted_ipa = extract_ipa(ipa_path)?;
+        let path = ipa_path.as_ref();
+
+        if path.is_dir() {
+            return self.run_on_bundle(path, run_started);
+        }
+
+        let extracted_ipa = extract_ipa(path)?;
 
         let app_bundle_path = extracted_ipa
             .get_app_bundle_path()
@@ -71,7 +81,11 @@ impl Engine {
             None
         };
 
-        let context = ArtifactContext::new(app_bundle_path, info_plist.as_ref());
+        let context = ArtifactContext::new(
+            app_bundle_path,
+            info_plist.as_ref(),
+            self.xcode_project.as_ref(),
+        );
 
         let mut results = Vec::new();
 

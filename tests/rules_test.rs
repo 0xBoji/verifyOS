@@ -28,7 +28,7 @@ fn get_fixture_path() -> PathBuf {
 #[test]
 fn test_privacy_manifest_rule_passes() {
     let app_path = get_fixture_path();
-    let context = ArtifactContext::new(&app_path, None);
+    let context = ArtifactContext::new(&app_path, None, None);
 
     let rule = MissingPrivacyManifestRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -38,7 +38,7 @@ fn test_privacy_manifest_rule_passes() {
 #[test]
 fn test_privacy_manifest_rule_fails() {
     let app_path = PathBuf::from("does_not_exist.app");
-    let context = ArtifactContext::new(&app_path, None);
+    let context = ArtifactContext::new(&app_path, None, None);
 
     let rule = MissingPrivacyManifestRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -51,7 +51,7 @@ fn test_camera_usage_rule_passes() {
     let plist_path = app_path.join("Info.plist");
     let plist = InfoPlist::from_file(&plist_path).unwrap();
 
-    let context = ArtifactContext::new(&app_path, Some(&plist));
+    let context = ArtifactContext::new(&app_path, Some(&plist), None);
 
     let rule = CameraUsageDescriptionRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -64,7 +64,7 @@ fn test_embedded_team_rule_skips_without_executable() {
     let plist_path = app_path.join("Info.plist");
     let plist = InfoPlist::from_file(&plist_path).unwrap();
 
-    let context = ArtifactContext::new(&app_path, Some(&plist));
+    let context = ArtifactContext::new(&app_path, Some(&plist), None);
 
     let rule = EmbeddedCodeSignatureTeamRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -84,7 +84,7 @@ fn test_lsapplicationqueries_schemes_passes() {
 
     let plist = InfoPlist::from_dictionary(dict);
     let app_path = PathBuf::from("does_not_exist.app");
-    let context = ArtifactContext::new(&app_path, Some(&plist));
+    let context = ArtifactContext::new(&app_path, Some(&plist), None);
 
     let rule = LSApplicationQueriesSchemesAuditRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -105,7 +105,7 @@ fn test_lsapplicationqueries_schemes_fails_on_duplicates() {
 
     let plist = InfoPlist::from_dictionary(dict);
     let app_path = PathBuf::from("does_not_exist.app");
-    let context = ArtifactContext::new(&app_path, Some(&plist));
+    let context = ArtifactContext::new(&app_path, Some(&plist), None);
 
     let rule = LSApplicationQueriesSchemesAuditRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -128,7 +128,7 @@ fn test_device_capabilities_audit_fails_on_missing_usage() {
     );
     let plist = InfoPlist::from_dictionary(dict);
 
-    let context = ArtifactContext::new(&app_dir, Some(&plist));
+    let context = ArtifactContext::new(&app_dir, Some(&plist), None);
 
     let rule = UIRequiredDeviceCapabilitiesAuditRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -151,7 +151,7 @@ fn test_device_capabilities_audit_passes_on_usage() {
     );
     let plist = InfoPlist::from_dictionary(dict);
 
-    let context = ArtifactContext::new(&app_dir, Some(&plist));
+    let context = ArtifactContext::new(&app_dir, Some(&plist), None);
 
     let rule = UIRequiredDeviceCapabilitiesAuditRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -167,7 +167,7 @@ fn test_artifact_context_caches_usage_scan_results() {
     let executable_path = app_dir.join("TestApp");
     fs::write(&executable_path, b"AVCaptureDevice").expect("write executable");
 
-    let context = ArtifactContext::new(&app_dir, None);
+    let context = ArtifactContext::new(&app_dir, None, None);
     let first_scan = context.usage_scan().expect("usage scan should succeed");
     assert!(first_scan
         .required_keys
@@ -199,7 +199,7 @@ fn test_artifact_context_caches_bundle_plist_results() {
         .to_file_xml(&plist_path)
         .expect("write plist");
 
-    let context = ArtifactContext::new(&app_dir, None);
+    let context = ArtifactContext::new(&app_dir, None, None);
     let first_plist = context
         .bundle_info_plist(&app_dir)
         .expect("plist load should succeed")
@@ -230,7 +230,7 @@ fn test_artifact_context_caches_bundle_file_index() {
     let manifest_path = app_dir.join("PrivacyInfo.xcprivacy");
     fs::write(&manifest_path, b"<plist/>").expect("write privacy manifest");
 
-    let context = ArtifactContext::new(&app_dir, None);
+    let context = ArtifactContext::new(&app_dir, None, None);
     let first_hit = context.bundle_relative_file("PrivacyInfo.xcprivacy");
     assert_eq!(first_hit.as_deref(), Some(manifest_path.as_path()));
 
@@ -249,7 +249,7 @@ fn test_artifact_context_tracks_cache_hits_and_misses() {
     let executable_path = app_dir.join("TestApp");
     fs::write(&executable_path, b"AVCaptureDevice").expect("write executable");
 
-    let context = ArtifactContext::new(&app_dir, None);
+    let context = ArtifactContext::new(&app_dir, None, None);
     let _ = context.usage_scan().expect("first usage scan");
     let _ = context.usage_scan().expect("second usage scan");
 
@@ -274,7 +274,7 @@ fn test_ats_granularity_fails_on_broad_exception() {
 
     let plist = InfoPlist::from_dictionary(root);
     let app_path = PathBuf::from("does_not_exist.app");
-    let context = ArtifactContext::new(&app_path, Some(&plist));
+    let context = ArtifactContext::new(&app_path, Some(&plist), None);
 
     let rule = AtsExceptionsGranularityRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -291,7 +291,7 @@ fn test_ats_granularity_passes_without_exceptions() {
 
     let plist = InfoPlist::from_dictionary(root);
     let app_path = PathBuf::from("does_not_exist.app");
-    let context = ArtifactContext::new(&app_path, Some(&plist));
+    let context = ArtifactContext::new(&app_path, Some(&plist), None);
 
     let rule = AtsExceptionsGranularityRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -307,7 +307,7 @@ fn test_bundle_resource_leakage_fails_on_secret_file() {
     let secret_path = app_dir.join("secrets.env");
     fs::write(&secret_path, b"API_KEY=123").expect("write secret");
 
-    let context = ArtifactContext::new(&app_dir, None);
+    let context = ArtifactContext::new(&app_dir, None, None);
 
     let rule = BundleResourceLeakageRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -320,7 +320,7 @@ fn test_bundle_resource_leakage_passes_when_clean() {
     let app_dir = dir.path().join("TestApp.app");
     fs::create_dir_all(&app_dir).expect("create app dir");
 
-    let context = ArtifactContext::new(&app_dir, None);
+    let context = ArtifactContext::new(&app_dir, None, None);
 
     let rule = BundleResourceLeakageRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -341,7 +341,7 @@ fn test_info_plist_versioning_passes() {
 
     let plist = InfoPlist::from_dictionary(dict);
     let app_path = PathBuf::from("does_not_exist.app");
-    let context = ArtifactContext::new(&app_path, Some(&plist));
+    let context = ArtifactContext::new(&app_path, Some(&plist), None);
 
     let rule = InfoPlistVersionConsistencyRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -362,7 +362,7 @@ fn test_info_plist_versioning_fails_on_invalid() {
 
     let plist = InfoPlist::from_dictionary(dict);
     let app_path = PathBuf::from("does_not_exist.app");
-    let context = ArtifactContext::new(&app_path, Some(&plist));
+    let context = ArtifactContext::new(&app_path, Some(&plist), None);
 
     let rule = InfoPlistVersionConsistencyRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -372,7 +372,7 @@ fn test_info_plist_versioning_fails_on_invalid() {
 #[test]
 fn test_extension_entitlements_rule_passes_without_extensions() {
     let app_path = get_fixture_path();
-    let context = ArtifactContext::new(&app_path, None);
+    let context = ArtifactContext::new(&app_path, None, None);
 
     let rule = ExtensionEntitlementsCompatibilityRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");
@@ -382,7 +382,7 @@ fn test_extension_entitlements_rule_passes_without_extensions() {
 #[test]
 fn test_privacy_sdk_crosscheck_skips_without_manifest() {
     let app_path = PathBuf::from("does_not_exist.app");
-    let context = ArtifactContext::new(&app_path, None);
+    let context = ArtifactContext::new(&app_path, None, None);
 
     let rule = PrivacyManifestSdkCrossCheckRule;
     let result = rule.evaluate(&context).expect("Rule should evaluate");

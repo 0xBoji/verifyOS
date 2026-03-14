@@ -100,6 +100,7 @@ pub struct ArtifactContext<'a> {
     entitlements_cache: RefCell<HashMap<PathBuf, Option<InfoPlist>>>,
     provisioning_profile_cache: RefCell<HashMap<PathBuf, Option<ProvisioningProfile>>>,
     bundle_file_cache: RefCell<Option<Vec<PathBuf>>>,
+    pub xcode_project: Option<&'a crate::parsers::xcode_parser::XcodeProject>,
     cache_stats: RefCell<ArtifactCacheStats>,
 }
 
@@ -107,6 +108,7 @@ impl<'a> ArtifactContext<'a> {
     pub fn new(
         app_bundle_path: &'a Path,
         info_plist: Option<&'a crate::parsers::plist_reader::InfoPlist>,
+        xcode_project: Option<&'a crate::parsers::xcode_parser::XcodeProject>,
     ) -> Self {
         Self {
             app_bundle_path,
@@ -121,6 +123,7 @@ impl<'a> ArtifactContext<'a> {
             entitlements_cache: RefCell::new(HashMap::new()),
             provisioning_profile_cache: RefCell::new(HashMap::new()),
             bundle_file_cache: RefCell::new(None),
+            xcode_project,
             cache_stats: RefCell::new(ArtifactCacheStats::default()),
         }
     }
