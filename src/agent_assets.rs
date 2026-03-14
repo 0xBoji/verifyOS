@@ -78,7 +78,15 @@ impl AgentAssetLayout {
 
     pub fn from_output_dir(output_dir: impl Into<PathBuf>) -> Self {
         let output_dir = output_dir.into();
-        Self::new(output_dir.clone(), output_dir.join(AGENTS_FILE_NAME))
+        let agents_path = if output_dir.file_name().and_then(|n| n.to_str()) == Some(".verifyos") {
+            output_dir
+                .parent()
+                .map(|p| p.join(AGENTS_FILE_NAME))
+                .unwrap_or_else(|| output_dir.join(AGENTS_FILE_NAME))
+        } else {
+            output_dir.join(AGENTS_FILE_NAME)
+        };
+        Self::new(output_dir, agents_path)
     }
 
     pub fn with_agents_path(&self, agents_path: impl Into<PathBuf>) -> Self {

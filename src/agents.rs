@@ -86,6 +86,7 @@ pub fn build_managed_block(
     let mut out = String::new();
     out.push_str(MANAGED_START);
     out.push('\n');
+    out.push_str("---\n\n");
     out.push_str("## verifyOS-cli\n\n");
     out.push_str("Use `voc` before large iOS submission changes or release builds.\n\n");
     out.push_str("### Recommended Workflow\n\n");
@@ -121,6 +122,7 @@ pub fn build_managed_block(
         out.push_str(&inventory_row(&item));
     }
     out.push('\n');
+    out.push_str("---\n");
     out.push_str(MANAGED_END);
     out.push('\n');
     out

@@ -220,6 +220,7 @@ fn informational_diagnostic(code: &str, message: &str) -> Diagnostic {
 
 #[tokio::main]
 pub async fn run(args: LspArgs) -> Result<()> {
+    eprintln!("verifyOS LSP starting with profile: {:?}", args.profile);
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
@@ -229,6 +230,7 @@ pub async fn run(args: LspArgs) -> Result<()> {
     });
     Server::new(stdin, stdout, socket).serve(service).await;
 
+    eprintln!("verifyOS LSP shutting down cleanly.");
     Ok(())
 }
 

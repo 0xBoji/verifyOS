@@ -88,6 +88,10 @@ struct Args {
     #[arg(long)]
     config: Option<PathBuf>,
 
+    /// Path to a sibling .xcodeproj for deeper analysis (auto-detected if sibling to app)
+    #[arg(long)]
+    project: Option<PathBuf>,
+
     /// Output format: table, json, sarif
     #[arg(long, value_enum)]
     format: Option<OutputFormat>,
@@ -221,9 +225,50 @@ fn main() -> Result<()> {
     let selection = build_rule_selection(profile, &runtime.include, &runtime.exclude)?;
     register_rules(&mut engine, profile, &selection);
 
-    // 4. Run the Engine
+    // 4. Handle Xcode Project
+    let app_path = args
+        .app
+        .as_ref()
+        .expect("app is required unless list-rules");
+    let project_path = if let Some(p) = args.project {
+        Some(p)
+    } else {
+        // Auto-detect sibling .xcodeproj
+        let mut xcode_proj = None;
+        if let Some(parent) = app_path.parent() {
+            if let Ok(entries) = std::fs::read_dir(parent) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.extension().is_some_and(|ext| ext == "xcodeproj") {
+                        xcode_proj = Some(path);
+                        break;
+                    }
+                }
+            }
+        }
+        xcode_proj
+    };
+
+    if let Some(path) = project_path {
+        pb.set_message(format!("Loading Xcode project: {}...", path.display()));
+        match verifyos_cli::parsers::xcode_parser::XcodeProject::from_path(&path) {
+            Ok(proj) => engine.xcode_project = Some(proj),
+            Err(e) => {
+                pb.suspend(|| {
+                    eprintln!(
+                        "Warning: Failed to load Xcode project at {}: {}",
+                        path.display(),
+                        e
+                    );
+                });
+            }
+        }
+    }
+
+    // 5. Run the Engine
+    pb.set_message("Analyzing app bundle...");
     let run = engine
-        .run(args.app.expect("app is required unless list-rules"))
+        .run(app_path)
         .map_err(|e| miette::miette!("Engine orchestrator failed: {}", e))?;
 
     // 5. Stop the spinner
