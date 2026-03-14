@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3](https://github.com/0xBoji/verifyos-cli/compare/v0.7.2...v0.7.3) - 2026-03-13
+
+### Fixed
+
+- *(vscode)* release 0.1.5
+
 ## [0.7.2](https://github.com/0xBoji/verifyos-cli/compare/v0.7.1...v0.7.2) - 2026-03-13
 
 ### Added
