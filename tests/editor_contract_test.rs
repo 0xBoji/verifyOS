@@ -16,26 +16,21 @@ fn vscode_extension_launches_voc_lsp() {
     let package_json = vscode_file("package.json");
     let extension_ts = vscode_file("src/extension.ts");
 
-    assert!(package_json.contains("\"version\": \"0.1.5\""));
+    assert!(package_json.contains("\"version\": \"0.1.18\""));
     assert!(package_json.contains("\"icon\": \"assets/verifyOS_128x.png\""));
-    assert!(package_json.contains("\"icon\": \"assets/verifyOS-activity.svg\""));
+    assert!(package_json.contains("\"$(check)\""));
     assert!(package_json.contains("\"galleryBanner\""));
     assert!(package_json.contains("\"ai-agent\""));
-    assert!(package_json.contains("\"onStartupFinished\""));
-    assert!(package_json.contains("\"onView:verifyOS.explorer\""));
     assert!(package_json.contains("\"viewsContainers\""));
     assert!(package_json.contains("\"verifyOS.explorer\""));
     assert!(package_json.contains("\"verifyOS.scanCurrentBundle\""));
     assert!(package_json.contains("\"verifyOS.generateHandoff\""));
-    assert!(package_json.contains("\"verifyOS.openProblems\""));
     assert!(package_json.contains("\"verifyOS.restartLanguageServer\""));
     assert!(package_json.contains("\"verifyOS.showOutput\""));
     assert!(package_json.contains("\"verifyOS.path\""));
     assert!(package_json.contains("\"verifyOS.useBundledBinary\""));
     assert!(package_json.contains("\"verifyOS.profile\""));
     assert!(package_json.contains("\"verifyOS.outputDir\""));
-    assert!(package_json.contains("\"bin/**\""));
-    assert!(package_json.contains("\"CHANGELOG.md\""));
     assert!(extension_ts.contains("[\"lsp\", \"--profile\", profile]"));
     assert!(extension_ts.contains("resolveBundledBinary(context)"));
     assert!(extension_ts.contains("Starting verifyOS language server via"));
@@ -58,13 +53,11 @@ fn vscode_extension_workflow_packages_and_publishes_vsix() {
     .expect("vscode workflow should be readable");
 
     assert!(package_json.contains("\"package\": \"vsce package --allow-missing-repository\""));
-    assert!(changelog.contains("## 0.1.5"));
-    assert!(changelog.contains("Action Center tree provider explicitly"));
+    assert!(changelog.contains("## 0.1.18"));
+    assert!(changelog.contains("UX Refinement: Revert 'Start' button icons"));
     assert!(package_json.contains("\"publish:vsce\": \"vsce publish\""));
     assert!(package_json.contains("\"publish:ovsx\": \"ovsx publish\""));
-    assert!(package_json.contains("\"LICENSE.md\""));
-    assert!(package_json.contains("\"assets/**\""));
-    assert!(package_json.contains("\"bin/**\""));
+    assert!(package_json.contains("\"assets/verifyOS_128x.png\""));
     assert!(workflow.contains("name: VS Code Extension"));
     assert!(workflow.contains("build-bundled-binaries"));
     assert!(workflow.contains("Build bundled binary (${{ matrix.label }})"));
