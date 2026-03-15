@@ -467,9 +467,6 @@ export default function Home() {
         <footer className="app-footer">
           <div>
             <div className="footer-label">
-              <span className="footer-brand" aria-hidden="true">
-                <img src="/logo/verifyOS_web_128x.png" alt="" />
-              </span>
               verifyOS
             </div>
             <div className="footer-subtitle">Resources &amp; downloads</div>
@@ -481,6 +478,9 @@ export default function Home() {
               rel="noreferrer"
               className="footer-link"
             >
+              <span className="footer-icon" aria-hidden="true">
+                GH
+              </span>
               GitHub Repo
             </a>
             <a
@@ -489,6 +489,9 @@ export default function Home() {
               rel="noreferrer"
               className="footer-link"
             >
+              <span className="footer-icon" aria-hidden="true">
+                VS
+              </span>
               VS Code Extension
             </a>
             <a
@@ -497,6 +500,9 @@ export default function Home() {
               rel="noreferrer"
               className="footer-link"
             >
+              <span className="footer-icon" aria-hidden="true">
+                CR
+              </span>
               crates.io
             </a>
           </nav>
