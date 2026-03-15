@@ -1,0 +1,19 @@
+[package]
+name = "verifyos-backend"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+axum = { version = "0.7", features = ["multipart"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tempfile = "3.12"
+thiserror = "1.0"
+tokio = { version = "1.39", features = ["macros", "rt-multi-thread"] }
+tower-http = { version = "0.5", features = ["trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1.8", features = ["v4"] }
+
+verifyos-cli = { path = "../../" }
