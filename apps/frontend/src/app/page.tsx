@@ -4,11 +4,15 @@ import { useMemo, useRef, useState } from "react";
 
 export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const projectRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [projectFile, setProjectFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [profile, setProfile] = useState<"basic" | "full">("full");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const examplePayload = {
     report: {
@@ -67,6 +71,12 @@ export default function Home() {
     setRawResult(null);
   };
 
+  const handleProjectChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setProjectFile(file);
+    setStatus(file ? `Attached ${file.name}` : "Project removed");
+  };
+
   const handleUpload = async () => {
     if (!selectedFile || isUploading) {
       return;
@@ -79,7 +89,10 @@ export default function Home() {
     try {
       const form = new FormData();
       form.append("bundle", selectedFile);
-      form.append("profile", "full");
+      form.append("profile", profile);
+      if (projectFile) {
+        form.append("project", projectFile);
+      }
 
       const response = await fetch("http://127.0.0.1:7070/api/v1/scan", {
         method: "POST",
@@ -133,7 +146,10 @@ export default function Home() {
 
   const summary = useMemo(() => {
     const report = result?.report as
-      | { results?: Array<Record<string, unknown>>; total_duration_ms?: number }
+      | {
+          results?: Array<Record<string, unknown>>;
+          total_duration_ms?: number;
+        }
       | undefined;
     const results = report?.results ?? [];
     const failures = results.filter((item) => {
@@ -147,12 +163,26 @@ export default function Home() {
         ? `${report.total_duration_ms}ms`
         : null;
 
+    const byCategory = results.reduce<Record<string, number>>((acc, item) => {
+      const category = String(item.category ?? "Other");
+      acc[category] = (acc[category] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    const bySeverity = results.reduce<Record<string, number>>((acc, item) => {
+      const severity = String(item.severity ?? "Unknown");
+      acc[severity] = (acc[severity] ?? 0) + 1;
+      return acc;
+    }, {});
+
     return {
       results,
       failures,
       errorCount,
       warningCount,
       duration,
+      byCategory,
+      bySeverity,
     };
   }, [result]);
 
@@ -291,6 +321,39 @@ export default function Home() {
                 {selectedFile ? selectedFile.name : "No file selected"}
               </div>
             </div>
+            {showAdvanced ? (
+              <div className="advanced-panel">
+                <div className="advanced-row">
+                  <label htmlFor="profile-select">Profile</label>
+                  <select
+                    id="profile-select"
+                    value={profile}
+                    onChange={(event) =>
+                      setProfile(event.target.value as "basic" | "full")
+                    }
+                  >
+                    <option value="basic">Basic (core rules)</option>
+                    <option value="full">Full (all rules)</option>
+                  </select>
+                </div>
+                <div className="advanced-row">
+                  <label htmlFor="project-file">Project zip (optional)</label>
+                  <input
+                    ref={projectRef}
+                    id="project-file"
+                    type="file"
+                    accept=".zip"
+                    onChange={handleProjectChange}
+                  />
+                  <span className="advanced-hint">
+                    Zip your .xcodeproj or .xcworkspace to include project context.
+                  </span>
+                </div>
+                {projectFile ? (
+                  <div className="upload-status">Attached {projectFile.name}</div>
+                ) : null}
+              </div>
+            ) : null}
             {status ? <div className="status-pill">{status}</div> : null}
             {result ? (
               <div className="report-stack">
@@ -326,6 +389,36 @@ export default function Home() {
                       <li className="finding-empty">No failing rules detected.</li>
                     ) : null}
                   </ul>
+                </div>
+
+                <div className="result-card">
+                  <div className="result-header">Findings by category</div>
+                  <div className="bar-list">
+                    {Object.entries(summary.byCategory).map(([name, count]) => (
+                      <div key={name} className="bar-row">
+                        <span>{name}</span>
+                        <div className="bar">
+                          <div
+                            className="bar-fill"
+                            style={{ width: `${Math.min(count * 12, 100)}%` }}
+                          />
+                        </div>
+                        <strong>{count}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="result-card">
+                  <div className="result-header">Findings by severity</div>
+                  <div className="pill-row">
+                    {Object.entries(summary.bySeverity).map(([name, count]) => (
+                      <div key={name} className="pill-chip">
+                        <span>{name}</span>
+                        <strong>{count}</strong>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="result-card">
@@ -373,8 +466,12 @@ export default function Home() {
               <div>
                 <strong>Next:</strong> privacy manifest, entitlements, ATS rules
               </div>
-              <button className="ghost-button" type="button">
-                Advanced options
+              <button
+                className="ghost-button"
+                type="button"
+                onClick={() => setShowAdvanced((prev) => !prev)}
+              >
+                {showAdvanced ? "Hide advanced options" : "Advanced options"}
               </button>
             </div>
           </div>

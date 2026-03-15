@@ -331,6 +331,39 @@ body {
   background: rgba(92, 225, 230, 0.18);
 }
 
+.advanced-panel {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(140, 82, 255, 0.15);
+  background: rgba(140, 82, 255, 0.06);
+}
+
+.advanced-row {
+  display: grid;
+  gap: 6px;
+}
+
+.advanced-row label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.advanced-row select,
+.advanced-row input[type="file"] {
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--ios-outline);
+  background: #fff;
+}
+
+.advanced-hint {
+  font-size: 11px;
+  color: rgba(11, 11, 22, 0.55);
+}
+
 .result-card {
   border-radius: 18px;
   border: 1px solid var(--ios-outline);
@@ -397,6 +430,47 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.bar-list {
+  display: grid;
+  gap: 8px;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 40px;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(140, 82, 255, 0.12);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ios-purple), var(--ios-teal));
+}
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(92, 225, 230, 0.2);
+  font-size: 12px;
 }
 
 .result-card pre {
