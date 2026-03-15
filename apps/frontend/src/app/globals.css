@@ -238,6 +238,9 @@ body {
   backdrop-filter: blur(12px);
   display: grid;
   gap: 18px;
+  width: 100%;
+  max-width: 520px;
+  justify-self: end;
 }
 
 .card-header {
@@ -269,10 +272,18 @@ body {
   border: 2px dashed rgba(140, 82, 255, 0.25);
   border-radius: 20px;
   padding: 24px;
-  display: grid;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
   text-align: center;
   background: rgba(140, 82, 255, 0.06);
+}
+
+.dropzone-content {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
 }
 
 .dropzone span {
@@ -293,6 +304,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.upload-actions .primary-button {
+  width: 100%;
 }
 
 .upload-actions button:disabled {
@@ -333,6 +348,12 @@ body {
 .result-header {
   font-weight: 600;
   margin-bottom: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.result-card summary::-webkit-details-marker {
+  display: none;
 }
 
 .card-footer {
@@ -391,5 +412,9 @@ body {
   .card-footer {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .hero-card {
+    justify-self: stretch;
   }
 }

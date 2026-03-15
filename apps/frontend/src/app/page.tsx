@@ -145,8 +145,8 @@ export default function Home() {
               <span className="chip">Profile: Full</span>
             </div>
             <div className="dropzone">
-              <div className="drop-icon">⬆</div>
-              <div>
+              <div className="dropzone-content">
+                <div className="drop-icon">⬆</div>
                 <strong>Drag &amp; drop your bundle</strong>
                 <span>.ipa or .app, up to 1GB</span>
               </div>
@@ -156,6 +156,7 @@ export default function Home() {
                 type="file"
                 accept=".ipa,.app"
                 onChange={handleFileChange}
+                hidden
               />
               <button className="secondary-button" type="button" onClick={handleChooseFile}>
                 Choose file
@@ -176,10 +177,10 @@ export default function Home() {
             </div>
             {status ? <div className="status-pill">{status}</div> : null}
             {result ? (
-              <div className="result-card">
-                <div className="result-header">Latest report</div>
+              <details className="result-card" open>
+                <summary className="result-header">Latest report</summary>
                 <pre>{result}</pre>
-              </div>
+              </details>
             ) : null}
             <div className="card-footer">
               <div>
