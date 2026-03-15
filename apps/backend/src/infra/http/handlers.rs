@@ -1,6 +1,7 @@
 use crate::app::{ScanError, ScanService};
 use crate::domain::{ScanProfileInput, ScanRequest};
 use axum::extract::{Multipart, State};
+use axum::http::header::CONTENT_TYPE;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
@@ -9,8 +10,34 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 use tracing::info;
+use verifyos_cli::report::{apply_agent_pack_baseline, render_markdown, render_sarif, TimingMode};
 use zip::ZipArchive;
 use zip::{write::FileOptions, ZipWriter};
+
+#[derive(Clone, Copy)]
+enum ScanOutputFormat {
+    Json,
+    Sarif,
+    Markdown,
+}
+
+fn parse_scan_format(value: &str) -> Option<ScanOutputFormat> {
+    match value.to_ascii_lowercase().as_str() {
+        "json" => Some(ScanOutputFormat::Json),
+        "sarif" => Some(ScanOutputFormat::Sarif),
+        "markdown" | "md" => Some(ScanOutputFormat::Markdown),
+        _ => None,
+    }
+}
+
+fn append_rule_list(values: &mut Vec<String>, input: &str) {
+    for item in input.split(',') {
+        let trimmed = item.trim();
+        if !trimmed.is_empty() {
+            values.push(trimmed.to_string());
+        }
+    }
+}
 
 pub async fn health() -> impl IntoResponse {
     StatusCode::OK
@@ -20,11 +47,17 @@ pub async fn scan_bundle(
     State(service): State<ScanService>,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
-    let mut request = ScanRequest { profile: None };
+    let mut request = ScanRequest {
+        profile: None,
+        include: Vec::new(),
+        exclude: Vec::new(),
+        baseline: None,
+    };
     let mut temp_file: Option<NamedTempFile> = None;
     let mut project_file: Option<NamedTempFile> = None;
     let mut project_path: Option<PathBuf> = None;
     let mut project_dir: Option<tempfile::TempDir> = None;
+    let mut format = ScanOutputFormat::Json;
 
     while let Ok(Some(field)) = multipart.next_field().await {
         let name = field.name().unwrap_or_default().to_string();
@@ -35,6 +68,48 @@ pub async fn scan_bundle(
                     "full" => Some(ScanProfileInput::Full),
                     _ => None,
                 };
+            }
+            continue;
+        }
+
+        if name == "include" {
+            if let Ok(value) = field.text().await {
+                append_rule_list(&mut request.include, &value);
+            }
+            continue;
+        }
+
+        if name == "exclude" {
+            if let Ok(value) = field.text().await {
+                append_rule_list(&mut request.exclude, &value);
+            }
+            continue;
+        }
+
+        if name == "format" {
+            if let Ok(value) = field.text().await {
+                match parse_scan_format(&value) {
+                    Some(parsed) => format = parsed,
+                    None => {
+                        return (
+                            StatusCode::BAD_REQUEST,
+                            Json(json!({ "error": "format must be json, sarif, or markdown" })),
+                        )
+                            .into_response();
+                    }
+                }
+            }
+            continue;
+        }
+
+        if name == "baseline" {
+            let bytes = match field.bytes().await {
+                Ok(bytes) => bytes,
+                Err(err) => return to_error(err).into_response(),
+            };
+            match serde_json::from_slice(&bytes) {
+                Ok(report) => request.baseline = Some(report),
+                Err(err) => return to_error(err).into_response(),
             }
             continue;
         }
@@ -107,7 +182,28 @@ pub async fn scan_bundle(
     info!("running scan for uploaded bundle");
     let _keep_project_dir_alive = project_dir;
     match service.run_scan(request, bundle.path(), project_path.as_deref()) {
-        Ok(result) => (StatusCode::OK, Json(result)).into_response(),
+        Ok(result) => match format {
+            ScanOutputFormat::Json => (StatusCode::OK, Json(result)).into_response(),
+            ScanOutputFormat::Sarif => match render_sarif(&result.report) {
+                Ok(body) => (
+                    StatusCode::OK,
+                    [(CONTENT_TYPE, "application/sarif+json")],
+                    body,
+                )
+                    .into_response(),
+                Err(err) => to_error(err).into_response(),
+            },
+            ScanOutputFormat::Markdown => (
+                StatusCode::OK,
+                [(CONTENT_TYPE, "text/markdown; charset=utf-8")],
+                render_markdown(
+                    &result.report,
+                    result.baseline.as_ref().map(|summary| summary.suppressed),
+                    TimingMode::Summary,
+                ),
+            )
+                .into_response(),
+        },
         Err(err) => (StatusCode::BAD_REQUEST, Json(error_body(err))).into_response(),
     }
 }
@@ -116,7 +212,12 @@ pub async fn handoff_bundle(
     State(service): State<ScanService>,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
-    let mut request = ScanRequest { profile: None };
+    let mut request = ScanRequest {
+        profile: None,
+        include: Vec::new(),
+        exclude: Vec::new(),
+        baseline: None,
+    };
     let mut temp_file: Option<NamedTempFile> = None;
     let mut project_file: Option<NamedTempFile> = None;
     let mut project_path: Option<PathBuf> = None;
@@ -132,6 +233,32 @@ pub async fn handoff_bundle(
                     "full" => Some(ScanProfileInput::Full),
                     _ => None,
                 };
+            }
+            continue;
+        }
+
+        if name == "include" {
+            if let Ok(value) = field.text().await {
+                append_rule_list(&mut request.include, &value);
+            }
+            continue;
+        }
+
+        if name == "exclude" {
+            if let Ok(value) = field.text().await {
+                append_rule_list(&mut request.exclude, &value);
+            }
+            continue;
+        }
+
+        if name == "baseline" {
+            let bytes = match field.bytes().await {
+                Ok(bytes) => bytes,
+                Err(err) => return to_error(err).into_response(),
+            };
+            match serde_json::from_slice(&bytes) {
+                Ok(report) => request.baseline = Some(report),
+                Err(err) => return to_error(err).into_response(),
             }
             continue;
         }
@@ -218,11 +345,15 @@ pub async fn handoff_bundle(
         .unwrap_or_else(|| "full".to_string());
 
     info!("building agent handoff bundle");
-    let report = match service.run_scan_report(request, bundle.path(), project_path.as_deref()) {
-        Ok(report) => report,
+    let baseline = request.baseline.clone();
+    let outcome = match service.run_scan_report(request, bundle.path(), project_path.as_deref()) {
+        Ok(outcome) => outcome,
         Err(err) => return (StatusCode::BAD_REQUEST, Json(error_body(err))).into_response(),
     };
-    let pack = verifyos_cli::report::build_agent_pack(&report);
+    let mut pack = verifyos_cli::report::build_agent_pack(&outcome.report);
+    if let Some(baseline) = baseline.as_ref() {
+        apply_agent_pack_baseline(&mut pack, baseline);
+    }
 
     let hints = verifyos_cli::agents::CommandHints {
         output_dir: Some(layout.output_dir.display().to_string()),

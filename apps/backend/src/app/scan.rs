@@ -1,10 +1,10 @@
-use crate::domain::{ScanProfileInput, ScanRequest, ScanResponse};
+use crate::domain::{BaselineInfo, ScanProfileInput, ScanRequest, ScanResponse};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use thiserror::Error;
 use verifyos_cli::core::engine::{Engine, OrchestratorError};
-use verifyos_cli::profiles::{register_rules, RuleSelection, ScanProfile};
-use verifyos_cli::report::{build_report, ReportData};
+use verifyos_cli::profiles::{available_rule_ids, normalize_rule_id, register_rules, RuleSelection, ScanProfile};
+use verifyos_cli::report::{apply_baseline, build_report, BaselineSummary, ReportData};
 use zip::ZipArchive;
 
 #[derive(Debug, Error)]
@@ -15,6 +15,11 @@ pub enum ScanError {
 
 #[derive(Clone, Copy)]
 pub struct ScanService;
+
+pub struct ScanOutcome {
+    pub report: ReportData,
+    pub baseline: Option<BaselineSummary>,
+}
 
 impl ScanService {
     pub fn new() -> Self {
@@ -28,13 +33,16 @@ impl ScanService {
         project_path: Option<&Path>,
     ) -> Result<ScanResponse, ScanError> {
         let started = Instant::now();
-        let report = self.run_scan_report(request, bundle_path, project_path)?;
+        let outcome = self.run_scan_report(request, bundle_path, project_path)?;
         Ok(ScanResponse {
-            report,
+            report: outcome.report,
             warnings: vec![format!(
                 "scan completed in {duration}ms",
                 duration = started.elapsed().as_millis()
             )],
+            baseline: outcome
+                .baseline
+                .map(|summary| BaselineInfo { suppressed: summary.suppressed }),
         })
     }
 
@@ -43,14 +51,14 @@ impl ScanService {
         request: ScanRequest,
         bundle_path: P,
         project_path: Option<&Path>,
-    ) -> Result<ReportData, ScanError> {
+    ) -> Result<ScanOutcome, ScanError> {
         let profile = match request.profile {
             Some(ScanProfileInput::Basic) => ScanProfile::Basic,
             Some(ScanProfileInput::Full) | None => ScanProfile::Full,
         };
 
         let mut engine = Engine::new();
-        let selection = RuleSelection::default();
+        let selection = build_rule_selection(profile, &request.include, &request.exclude)?;
         register_rules(&mut engine, profile, &selection);
 
         if let Some(project_path) = project_path {
@@ -85,8 +93,48 @@ impl ScanService {
             Err(err) => return Err(ScanError::ScanFailed(err.to_string())),
         };
 
-        Ok(build_report(run.results, run.total_duration_ms, run.cache_stats))
+        let mut report = build_report(run.results, run.total_duration_ms, run.cache_stats);
+        let baseline = request.baseline.as_ref().map(|baseline| apply_baseline(&mut report, baseline));
+        Ok(ScanOutcome { report, baseline })
     }
+}
+
+fn build_rule_selection(
+    profile: ScanProfile,
+    include: &[String],
+    exclude: &[String],
+) -> Result<RuleSelection, ScanError> {
+    let available: std::collections::HashSet<String> =
+        available_rule_ids(profile).into_iter().collect();
+    let mut include_set = std::collections::HashSet::new();
+    let mut exclude_set = std::collections::HashSet::new();
+
+    for value in include {
+        let normalized = normalize_rule_id(value);
+        if !available.contains(&normalized) {
+            return Err(ScanError::ScanFailed(format!(
+                "Rule `{}` is not available for this profile",
+                normalized
+            )));
+        }
+        include_set.insert(normalized);
+    }
+
+    for value in exclude {
+        let normalized = normalize_rule_id(value);
+        if !available.contains(&normalized) {
+            return Err(ScanError::ScanFailed(format!(
+                "Rule `{}` is not available for this profile",
+                normalized
+            )));
+        }
+        exclude_set.insert(normalized);
+    }
+
+    Ok(RuleSelection {
+        include: include_set,
+        exclude: exclude_set,
+    })
 }
 
 fn is_zip_like(path: &Path) -> bool {
