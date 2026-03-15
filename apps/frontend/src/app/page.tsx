@@ -119,14 +119,14 @@ export default function Home() {
 
         <section className="footer-card">
           <div>
-            <h3>Ready for CI + agents</h3>
+            <h3>Backend-first flow</h3>
             <p>
-              Connect verifyOS to your pipeline or workflow bot. We’ll keep your
-              reviewers and AI assistants focused on the highest-impact fixes.
+              This UI runs alongside the Rust backend. Start the backend first,
+              then open the frontend to upload bundles and review reports.
             </p>
           </div>
           <button className="primary-button" type="button">
-            Connect backend
+            Start backend
           </button>
         </section>
       </main>
