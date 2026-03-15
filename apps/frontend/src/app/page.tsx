@@ -353,7 +353,10 @@ export default function Home() {
                   <div className="result-header">Findings by severity</div>
                   <div className="pill-row">
                     {Object.entries(summary.bySeverity).map(([name, count]) => (
-                      <div key={name} className="pill-chip">
+                      <div
+                        key={name}
+                        className={`pill-chip pill-chip--${name.toLowerCase()}`}
+                      >
                         <span>{name}</span>
                         <strong>{count}</strong>
                       </div>

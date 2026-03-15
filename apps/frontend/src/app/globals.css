@@ -449,6 +449,16 @@ body {
   font-size: 12px;
 }
 
+.pill-chip--error {
+  background: rgba(217, 72, 72, 0.15);
+  color: #b92c2c;
+}
+
+.pill-chip--warning {
+  background: rgba(244, 184, 64, 0.2);
+  color: #a86a05;
+}
+
 .copy-button {
   gap: 8px;
 }
