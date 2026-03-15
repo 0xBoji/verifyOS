@@ -24,6 +24,7 @@ impl ScanService {
         &self,
         request: ScanRequest,
         bundle_path: P,
+        project_path: Option<&Path>,
     ) -> Result<ScanResponse, ScanError> {
         let started = Instant::now();
         let profile = match request.profile {
@@ -34,6 +35,12 @@ impl ScanService {
         let mut engine = Engine::new();
         let selection = RuleSelection::default();
         register_rules(&mut engine, profile, &selection);
+
+        if let Some(project_path) = project_path {
+            if let Some(project) = load_xcode_project(project_path) {
+                engine.xcode_project = Some(project);
+            }
+        }
 
         let run = engine
             .run(bundle_path)
@@ -47,5 +54,62 @@ impl ScanService {
                 duration = started.elapsed().as_millis()
             )],
         })
+    }
+}
+
+fn load_xcode_project(
+    path: &Path,
+) -> Option<verifyos_cli::parsers::xcode_parser::XcodeProject> {
+    let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+    if extension.eq_ignore_ascii_case("xcworkspace") {
+        match verifyos_cli::parsers::xcworkspace_parser::Xcworkspace::from_path(path) {
+            Ok(workspace) => {
+                for project_path in workspace.project_paths {
+                    match verifyos_cli::parsers::xcode_parser::XcodeProject::from_path(
+                        &project_path,
+                    ) {
+                        Ok(project) => return Some(project),
+                        Err(err) => {
+                            eprintln!(
+                                "Warning: Failed to load Xcode project at {}: {}",
+                                project_path.display(),
+                                err
+                            );
+                        }
+                    }
+                }
+                eprintln!(
+                    "Warning: No usable .xcodeproj found in workspace {}",
+                    path.display()
+                );
+                None
+            }
+            Err(err) => {
+                eprintln!(
+                    "Warning: Failed to read Xcode workspace at {}: {}",
+                    path.display(),
+                    err
+                );
+                None
+            }
+        }
+    } else if extension.eq_ignore_ascii_case("xcodeproj") {
+        match verifyos_cli::parsers::xcode_parser::XcodeProject::from_path(path) {
+            Ok(project) => Some(project),
+            Err(err) => {
+                eprintln!(
+                    "Warning: Failed to load Xcode project at {}: {}",
+                    path.display(),
+                    err
+                );
+                None
+            }
+        }
+    } else {
+        eprintln!(
+            "Warning: Unsupported project type at {} (expected .xcodeproj or .xcworkspace)",
+            path.display()
+        );
+        None
     }
 }
