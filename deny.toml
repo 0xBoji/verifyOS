@@ -5,6 +5,7 @@ ignore = [
   { id = "RUSTSEC-2020-0095", reason = "difference is transitive via apple-codesign" },
   { id = "RUSTSEC-2025-0119", reason = "number_prefix is transitive via indicatif" },
   { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile is transitive via apple-codesign" },
+  { id = "RUSTSEC-2024-0436", reason = "paste is unmaintained but required by xcodeproj" },
 ]
 
 [bans]
