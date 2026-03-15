@@ -166,7 +166,35 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </section>
 
+        <section className="steps">
+          <div className="step">
+            <div className="step-number">1</div>
+            <div>
+              <h4>Upload bundle</h4>
+              <p>Scan locally with zero external uploads or cloud storage.</p>
+            </div>
+          </div>
+          <div className="step">
+            <div className="step-number">2</div>
+            <div>
+              <h4>Review findings</h4>
+              <p>
+                Clear severity, evidence, and recommendations for each rule.
+              </p>
+            </div>
+          </div>
+          <div className="step">
+            <div className="step-number">3</div>
+            <div>
+              <h4>Hand off to AI</h4>
+              <p>Generate agent packs, PR comments, and fix prompts in one tap.</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="scan-panel">
           <div className="hero-card">
             <div className="card-header">
               <div>
@@ -291,32 +319,6 @@ export default function Home() {
               <button className="ghost-button" type="button">
                 Advanced options
               </button>
-            </div>
-          </div>
-        </section>
-
-        <section className="steps">
-          <div className="step">
-            <div className="step-number">1</div>
-            <div>
-              <h4>Upload bundle</h4>
-              <p>Scan locally with zero external uploads or cloud storage.</p>
-            </div>
-          </div>
-          <div className="step">
-            <div className="step-number">2</div>
-            <div>
-              <h4>Review findings</h4>
-              <p>
-                Clear severity, evidence, and recommendations for each rule.
-              </p>
-            </div>
-          </div>
-          <div className="step">
-            <div className="step-number">3</div>
-            <div>
-              <h4>Hand off to AI</h4>
-              <p>Generate agent packs, PR comments, and fix prompts in one tap.</p>
             </div>
           </div>
         </section>
