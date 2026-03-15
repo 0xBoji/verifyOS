@@ -3,6 +3,7 @@ use crate::domain::{ScanProfileInput, ScanRequest};
 use axum::extract::{Multipart, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum::Json;
 use serde_json::json;
 use std::io::Write;
 use tempfile::NamedTempFile;
@@ -51,19 +52,15 @@ pub async fn scan_bundle(
     let Some(bundle) = temp_file else {
         return (
             StatusCode::BAD_REQUEST,
-            json!({ "error": "missing bundle file field" }),
+            Json(json!({ "error": "missing bundle file field" })),
         )
             .into_response();
     };
 
     info!("running scan for uploaded bundle");
     match service.run_scan(request, bundle.path()) {
-        Ok(result) => (
-            StatusCode::OK,
-            serde_json::to_value(result).unwrap_or_default(),
-        )
-            .into_response(),
-        Err(err) => (StatusCode::BAD_REQUEST, error_body(err)).into_response(),
+        Ok(result) => (StatusCode::OK, Json(result)).into_response(),
+        Err(err) => (StatusCode::BAD_REQUEST, Json(error_body(err))).into_response(),
     }
 }
 
@@ -71,6 +68,9 @@ fn error_body(err: ScanError) -> serde_json::Value {
     json!({ "error": err.to_string() })
 }
 
-fn to_error(err: impl std::fmt::Display) -> (StatusCode, serde_json::Value) {
-    (StatusCode::BAD_REQUEST, json!({ "error": err.to_string() }))
+fn to_error(err: impl std::fmt::Display) -> (StatusCode, Json<serde_json::Value>) {
+    (
+        StatusCode::BAD_REQUEST,
+        Json(json!({ "error": err.to_string() })),
+    )
 }

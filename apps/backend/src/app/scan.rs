@@ -12,6 +12,7 @@ pub enum ScanError {
     ScanFailed(String),
 }
 
+#[derive(Clone, Copy)]
 pub struct ScanService;
 
 impl ScanService {
@@ -38,7 +39,7 @@ impl ScanService {
             .run(bundle_path)
             .map_err(|err| ScanError::ScanFailed(err.to_string()))?;
 
-        let report = build_report(&run, None);
+        let report = build_report(run.results, run.total_duration_ms, run.cache_stats);
         Ok(ScanResponse {
             report,
             warnings: vec![format!(

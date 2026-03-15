@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use verifyos_cli::report::ReportData;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -14,6 +15,6 @@ pub struct ScanRequest {
 
 #[derive(Debug, Serialize)]
 pub struct ScanResponse {
-    pub report: serde_json::Value,
+    pub report: ReportData,
     pub warnings: Vec<String>,
 }
