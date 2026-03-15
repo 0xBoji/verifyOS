@@ -290,6 +290,33 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="links-row">
+          <a
+            href="https://github.com/0xBoji/verifyOS"
+            target="_blank"
+            rel="noreferrer"
+            className="link-card"
+          >
+            GitHub Repo
+          </a>
+          <a
+            href="https://marketplace.visualstudio.com/items?itemName=0xBoji.verifyos-vscode"
+            target="_blank"
+            rel="noreferrer"
+            className="link-card"
+          >
+            VS Code Extension
+          </a>
+          <a
+            href="https://crates.io/crates/verifyos-cli"
+            target="_blank"
+            rel="noreferrer"
+            className="link-card"
+          >
+            crates.io
+          </a>
+        </section>
+
         <section className="scan-panel" id="quick-scan">
           <div className="hero-card">
             <div className="card-header">

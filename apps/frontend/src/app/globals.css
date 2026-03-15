@@ -533,6 +533,32 @@ body {
   width: 100%;
 }
 
+.links-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.link-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--ios-outline);
+  background: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  color: var(--ios-ink);
+  font-weight: 600;
+  box-shadow: var(--ios-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.link-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px rgba(24, 28, 52, 0.18);
+}
+
 .step {
   display: flex;
   gap: 12px;
