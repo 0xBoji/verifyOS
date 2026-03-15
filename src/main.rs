@@ -233,35 +233,33 @@ fn main() -> Result<()> {
     let project_path = if let Some(p) = args.project {
         Some(p)
     } else {
-        // Auto-detect sibling .xcodeproj
-        let mut xcode_proj = None;
+        // Auto-detect sibling .xcworkspace or .xcodeproj
+        let mut workspace = None;
+        let mut project = None;
         if let Some(parent) = app_path.parent() {
             if let Ok(entries) = std::fs::read_dir(parent) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.extension().is_some_and(|ext| ext == "xcodeproj") {
-                        xcode_proj = Some(path);
-                        break;
+                    if workspace.is_none()
+                        && path
+                            .extension()
+                            .is_some_and(|ext| ext.eq_ignore_ascii_case("xcworkspace"))
+                    {
+                        workspace = Some(path.clone());
+                    }
+                    if project.is_none() && path.extension().is_some_and(|ext| ext == "xcodeproj") {
+                        project = Some(path);
                     }
                 }
             }
         }
-        xcode_proj
+        workspace.or(project)
     };
 
     if let Some(path) = project_path {
         pb.set_message(format!("Loading Xcode project: {}...", path.display()));
-        match verifyos_cli::parsers::xcode_parser::XcodeProject::from_path(&path) {
-            Ok(proj) => engine.xcode_project = Some(proj),
-            Err(e) => {
-                pb.suspend(|| {
-                    eprintln!(
-                        "Warning: Failed to load Xcode project at {}: {}",
-                        path.display(),
-                        e
-                    );
-                });
-            }
+        if let Some(project) = load_xcode_project(&path) {
+            engine.xcode_project = Some(project);
         }
     }
 
@@ -359,6 +357,63 @@ fn run_scan_for_agent_pack(
         apply_agent_pack_baseline(&mut agent_pack, &baseline);
     }
     Ok(agent_pack)
+}
+
+fn load_xcode_project(
+    path: &std::path::Path,
+) -> Option<verifyos_cli::parsers::xcode_parser::XcodeProject> {
+    let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+    if extension.eq_ignore_ascii_case("xcworkspace") {
+        match verifyos_cli::parsers::xcworkspace_parser::Xcworkspace::from_path(path) {
+            Ok(workspace) => {
+                for project_path in workspace.project_paths {
+                    match verifyos_cli::parsers::xcode_parser::XcodeProject::from_path(
+                        &project_path,
+                    ) {
+                        Ok(project) => return Some(project),
+                        Err(err) => {
+                            eprintln!(
+                                "Warning: Failed to load Xcode project at {}: {}",
+                                project_path.display(),
+                                err
+                            );
+                        }
+                    }
+                }
+                eprintln!(
+                    "Warning: No usable .xcodeproj found in workspace {}",
+                    path.display()
+                );
+                None
+            }
+            Err(err) => {
+                eprintln!(
+                    "Warning: Failed to read Xcode workspace at {}: {}",
+                    path.display(),
+                    err
+                );
+                None
+            }
+        }
+    } else if extension.eq_ignore_ascii_case("xcodeproj") {
+        match verifyos_cli::parsers::xcode_parser::XcodeProject::from_path(path) {
+            Ok(project) => Some(project),
+            Err(err) => {
+                eprintln!(
+                    "Warning: Failed to load Xcode project at {}: {}",
+                    path.display(),
+                    err
+                );
+                None
+            }
+        }
+    } else {
+        eprintln!(
+            "Warning: Unsupported project type at {} (expected .xcodeproj or .xcworkspace)",
+            path.display()
+        );
+        None
+    }
 }
 
 fn render_rule_inventory(output_format: OutputFormat) -> Result<()> {
