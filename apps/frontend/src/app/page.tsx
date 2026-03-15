@@ -353,14 +353,6 @@ export default function Home() {
               >
                 {isUploading ? "Uploading..." : "Run scan"}
               </button>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={handleDownloadBundle}
-                disabled={!selectedFile || isDownloading}
-              >
-                {isDownloading ? "Preparing bundle..." : "Download agent bundle"}
-              </button>
               <div className="upload-status">
                 {selectedFile ? selectedFile.name : "No file selected"}
               </div>
@@ -442,6 +434,14 @@ export default function Home() {
                 <div className="result-card">
                   <div className="result-header">Report actions</div>
                   <div className="report-actions">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={handleDownloadBundle}
+                      disabled={!selectedFile || isDownloading}
+                    >
+                      {isDownloading ? "Preparing bundle..." : "Download agent bundle"}
+                    </button>
                     <button
                       className="secondary-button"
                       type="button"
