@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { FaGithub } from "react-icons/fa";
+import { SiRust, SiVisualstudiocode } from "react-icons/si";
 
 export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -478,9 +480,7 @@ export default function Home() {
               rel="noreferrer"
               className="footer-link"
             >
-              <span className="footer-icon" aria-hidden="true">
-                GH
-              </span>
+              <FaGithub className="footer-icon" aria-hidden="true" />
               GitHub Repo
             </a>
             <a
@@ -489,9 +489,7 @@ export default function Home() {
               rel="noreferrer"
               className="footer-link"
             >
-              <span className="footer-icon" aria-hidden="true">
-                VS
-              </span>
+              <SiVisualstudiocode className="footer-icon" aria-hidden="true" />
               VS Code Extension
             </a>
             <a
@@ -500,9 +498,7 @@ export default function Home() {
               rel="noreferrer"
               className="footer-link"
             >
-              <span className="footer-icon" aria-hidden="true">
-                CR
-              </span>
+              <SiRust className="footer-icon" aria-hidden="true" />
               crates.io
             </a>
           </nav>

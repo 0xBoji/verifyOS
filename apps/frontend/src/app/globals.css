@@ -604,24 +604,17 @@ body {
 }
 
 .footer-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  color: white;
-  background: #111827;
+  width: 18px;
+  height: 18px;
+  color: #111827;
 }
 
 .footer-link:nth-of-type(2) .footer-icon {
-  background: #0078d4;
+  color: #0078d4;
 }
 
 .footer-link:nth-of-type(3) .footer-icon {
-  background: #f04d2f;
+  color: #f04d2f;
 }
 
 .step {
