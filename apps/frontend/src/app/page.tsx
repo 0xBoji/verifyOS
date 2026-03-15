@@ -1,4 +1,58 @@
+import { useRef, useState } from "react";
+
 export default function Home() {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleChooseFile = () => {
+    fileRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setStatus(file ? `Selected ${file.name}` : "No file selected");
+    setResult(null);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || isUploading) {
+      return;
+    }
+
+    setIsUploading(true);
+    setStatus("Uploading bundle...");
+    setResult(null);
+
+    try {
+      const form = new FormData();
+      form.append("bundle", selectedFile);
+      form.append("profile", "full");
+
+      const response = await fetch("http://127.0.0.1:7070/api/v1/scan", {
+        method: "POST",
+        body: form,
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        setStatus(payload?.error ?? "Scan failed");
+        setResult(null);
+      } else {
+        setStatus("Scan complete");
+        setResult(JSON.stringify(payload, null, 2));
+      }
+    } catch (error) {
+      setStatus("Failed to reach backend. Is it running on :7070?");
+      setResult(null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <div className="page">
       <div className="page-glow page-glow--left" />
@@ -39,8 +93,8 @@ export default function Home() {
               Designed for AI agents and human reviewers.
             </p>
             <div className="hero-actions">
-              <button className="primary-button" type="button">
-                Upload bundle
+              <button className="primary-button" type="button" onClick={handleChooseFile}>
+                Choose bundle
               </button>
               <button className="secondary-button" type="button">
                 View example report
@@ -76,10 +130,37 @@ export default function Home() {
                 <strong>Drag &amp; drop your bundle</strong>
                 <span>.ipa or .app, up to 1GB</span>
               </div>
-              <button className="secondary-button" type="button">
+              <input
+                ref={fileRef}
+                className="file-input"
+                type="file"
+                accept=".ipa,.app"
+                onChange={handleFileChange}
+              />
+              <button className="secondary-button" type="button" onClick={handleChooseFile}>
                 Choose file
               </button>
             </div>
+            <div className="upload-actions">
+              <button
+                className="primary-button"
+                type="button"
+                onClick={handleUpload}
+                disabled={!selectedFile || isUploading}
+              >
+                {isUploading ? "Uploading..." : "Run scan"}
+              </button>
+              <div className="upload-status">
+                {selectedFile ? selectedFile.name : "No file selected"}
+              </div>
+            </div>
+            {status ? <div className="status-pill">{status}</div> : null}
+            {result ? (
+              <div className="result-card">
+                <div className="result-header">Latest report</div>
+                <pre>{result}</pre>
+              </div>
+            ) : null}
             <div className="card-footer">
               <div>
                 <strong>Next:</strong> privacy manifest, entitlements, ATS rules
@@ -117,18 +198,6 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="footer-card">
-          <div>
-            <h3>Backend-first flow</h3>
-            <p>
-              This UI runs alongside the Rust backend. Start the backend first,
-              then open the frontend to upload bundles and review reports.
-            </p>
-          </div>
-          <button className="primary-button" type="button">
-            Start backend
-          </button>
-        </section>
       </main>
     </div>
   );
