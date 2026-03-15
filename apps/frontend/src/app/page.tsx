@@ -9,6 +9,7 @@ export default function Home() {
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const examplePayload = {
     report: {
@@ -295,11 +296,15 @@ export default function Home() {
                 <div className="report-summary">
                   <div>
                     <div className="summary-label">Errors</div>
-                    <div className="summary-value">{summary.errorCount}</div>
+                    <div className="summary-value summary-value--error">
+                      {summary.errorCount}
+                    </div>
                   </div>
                   <div>
                     <div className="summary-label">Warnings</div>
-                    <div className="summary-value">{summary.warningCount}</div>
+                    <div className="summary-value summary-value--warning">
+                      {summary.warningCount}
+                    </div>
                   </div>
                   <div>
                     <div className="summary-label">Findings</div>
@@ -381,10 +386,12 @@ export default function Home() {
                       onClick={() => {
                         if (!rawResult) return;
                         void navigator.clipboard?.writeText(rawResult);
-                        setStatus("Report copied to clipboard");
+                        setCopied(true);
+                        setStatus("Copied JSON to clipboard");
+                        window.setTimeout(() => setCopied(false), 1500);
                       }}
                     >
-                      Copy JSON
+                      {copied ? "✓ Copied" : "📋 Copy JSON"}
                     </button>
                   </div>
                 </div>

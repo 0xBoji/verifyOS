@@ -367,6 +367,14 @@ body {
   font-weight: 700;
 }
 
+.summary-value--error {
+  color: #d94848;
+}
+
+.summary-value--warning {
+  color: #f4b840;
+}
+
 .finding-list {
   list-style: none;
   padding: 0;
