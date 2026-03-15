@@ -10,6 +10,7 @@ export default function Home() {
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const examplePayload = {
     report: {
@@ -123,6 +124,45 @@ export default function Home() {
       setRawResult(null);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDownloadBundle = async () => {
+    if (!selectedFile || isDownloading) {
+      return;
+    }
+
+    setIsDownloading(true);
+    setStatus("Preparing agent bundle...");
+
+    try {
+      const form = new FormData();
+      form.append("bundle", selectedFile);
+      form.append("profile", "full");
+
+      const response = await fetch("http://127.0.0.1:7070/api/v1/handoff", {
+        method: "POST",
+        body: form,
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        setStatus(text || `Bundle failed (${response.status})`);
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "verifyos-handoff.zip";
+      link.click();
+      URL.revokeObjectURL(url);
+      setStatus("Agent bundle downloaded");
+    } catch (error) {
+      setStatus("Failed to download agent bundle");
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -285,6 +325,14 @@ export default function Home() {
                 disabled={!selectedFile || isUploading}
               >
                 {isUploading ? "Uploading..." : "Run scan"}
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={handleDownloadBundle}
+                disabled={!selectedFile || isDownloading}
+              >
+                {isDownloading ? "Preparing bundle..." : "Download agent bundle"}
               </button>
               <div className="upload-status">
                 {selectedFile ? selectedFile.name : "No file selected"}
