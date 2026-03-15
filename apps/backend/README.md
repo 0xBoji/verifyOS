@@ -31,14 +31,36 @@ curl -X POST http://127.0.0.1:7070/api/v1/scan \
   -F "profile=full"
 ```
 
+Download a full agent handoff bundle:
+
+```bash
+curl -X POST http://127.0.0.1:7070/api/v1/handoff \
+  -F "bundle=@/path/to/YourApp.ipa" \
+  -F "project=@/path/to/YourProject.zip" \
+  -F "profile=full" \
+  -o verifyos-handoff.zip
+
+unzip -q verifyos-handoff.zip
+bash apply-handoff.sh /path/to/project/root
+```
+
 ## API
 
 `POST /api/v1/scan`
 
 - multipart `bundle` file field (required)
 - `profile` form field: `basic` or `full` (optional)
+- `project` zip field with `.xcodeproj` or `.xcworkspace` (optional)
 
 Response: JSON report (same shape as `voc --format json`).
+
+`POST /api/v1/handoff`
+
+- multipart `bundle` file field (required)
+- `profile` form field: `basic` or `full` (optional)
+- `project` zip field with `.xcodeproj` or `.xcworkspace` (optional)
+
+Response: `verifyos-handoff.zip` containing `.verifyos/`, `AGENTS.md`, and `apply-handoff.sh`.
 
 ## Notes
 

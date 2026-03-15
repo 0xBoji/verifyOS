@@ -4,7 +4,7 @@ use std::time::Instant;
 use thiserror::Error;
 use verifyos_cli::core::engine::Engine;
 use verifyos_cli::profiles::{register_rules, RuleSelection, ScanProfile};
-use verifyos_cli::report::build_report;
+use verifyos_cli::report::{build_report, ReportData};
 
 #[derive(Debug, Error)]
 pub enum ScanError {
@@ -27,6 +27,22 @@ impl ScanService {
         project_path: Option<&Path>,
     ) -> Result<ScanResponse, ScanError> {
         let started = Instant::now();
+        let report = self.run_scan_report(request, bundle_path, project_path)?;
+        Ok(ScanResponse {
+            report,
+            warnings: vec![format!(
+                "scan completed in {duration}ms",
+                duration = started.elapsed().as_millis()
+            )],
+        })
+    }
+
+    pub fn run_scan_report<P: AsRef<Path>>(
+        &self,
+        request: ScanRequest,
+        bundle_path: P,
+        project_path: Option<&Path>,
+    ) -> Result<ReportData, ScanError> {
         let profile = match request.profile {
             Some(ScanProfileInput::Basic) => ScanProfile::Basic,
             Some(ScanProfileInput::Full) | None => ScanProfile::Full,
@@ -46,14 +62,11 @@ impl ScanService {
             .run(bundle_path)
             .map_err(|err| ScanError::ScanFailed(err.to_string()))?;
 
-        let report = build_report(run.results, run.total_duration_ms, run.cache_stats);
-        Ok(ScanResponse {
-            report,
-            warnings: vec![format!(
-                "scan completed in {duration}ms",
-                duration = started.elapsed().as_millis()
-            )],
-        })
+        Ok(build_report(
+            run.results,
+            run.total_duration_ms,
+            run.cache_stats,
+        ))
     }
 }
 
