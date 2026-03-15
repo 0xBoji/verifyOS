@@ -381,7 +381,7 @@ export default function Home() {
                       Download JSON
                     </button>
                     <button
-                      className="ghost-button"
+                      className={`ghost-button copy-button ${copied ? "is-copied" : ""}`}
                       type="button"
                       onClick={() => {
                         if (!rawResult) return;
@@ -391,7 +391,8 @@ export default function Home() {
                         window.setTimeout(() => setCopied(false), 1500);
                       }}
                     >
-                      {copied ? "✓ Copied" : "📋 Copy JSON"}
+                      <span className="copy-icon" aria-hidden="true" />
+                      {copied ? "Copied" : "Copy JSON"}
                     </button>
                   </div>
                 </div>

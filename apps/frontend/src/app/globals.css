@@ -449,6 +449,38 @@ body {
   font-size: 12px;
 }
 
+.copy-button {
+  gap: 8px;
+}
+
+.copy-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.6px solid rgba(15, 24, 46, 0.5);
+  position: relative;
+}
+
+.copy-icon::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1.6px solid rgba(15, 24, 46, 0.35);
+  top: -4px;
+  left: 4px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.copy-button.is-copied .copy-icon {
+  border-color: rgba(89, 179, 123, 0.9);
+}
+
+.copy-button.is-copied .copy-icon::after {
+  border-color: rgba(89, 179, 123, 0.7);
+}
+
 .result-card pre {
   margin: 0;
   max-height: 220px;
