@@ -664,6 +664,17 @@ Analysis complete!
 
 The design goal is to keep scanning concerns, report rendering, and AI-agent onboarding separate enough that we can keep adding rules without tangling the developer workflow around them.
 
+### Monorepo Layout (Init)
+
+We initialized a clean layout for a future backend/frontend split while keeping the current Rust crate stable:
+
+- `apps/cli` placeholder for the CLI app crate
+- `packages/core` placeholder for the Rust engine + rules crate
+- `apps/frontend` placeholder for a web UI or TUI shell
+- `editors/vscode` for the current VS Code extension
+
+See `docs/ARCHITECTURE.md` and `docs/STRUCTURE.md` for the full plan and the migration checklist.
+
 ## One-Page System Data Flow
 
 1. **Input**
