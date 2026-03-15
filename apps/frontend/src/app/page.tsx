@@ -2,7 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import { FaGithub } from "react-icons/fa";
-import { SiRust, SiVisualstudiocode } from "react-icons/si";
+import { SiRust } from "react-icons/si";
+import { VscVscode } from "react-icons/vsc";
 
 export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -489,7 +490,7 @@ export default function Home() {
               rel="noreferrer"
               className="footer-link"
             >
-              <SiVisualstudiocode className="footer-icon" aria-hidden="true" />
+              <VscVscode className="footer-icon" aria-hidden="true" />
               VS Code Extension
             </a>
             <a
