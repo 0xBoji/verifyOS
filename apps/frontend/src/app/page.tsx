@@ -213,10 +213,12 @@ export default function Home() {
               <span className="accent">zero surprises</span>.
             </h1>
             <p>
-              Upload your <span className="pill">.ipa</span> or{" "}
-              <span className="pill">.app</span> and get a clean, structured
-              report for privacy, entitlements, signing, and metadata risks.
-              Designed for AI agents and human reviewers.
+              Scan <span className="pill">.ipa</span>,{" "}
+              <span className="pill">.app</span>,{" "}
+              <span className="pill">.xcodeproj</span>, or{" "}
+              <span className="pill">.xcworkspace</span> (zip) and get a clean,
+              structured report for privacy, entitlements, signing, metadata,
+              and more. Designed for AI agents and human reviewers.
             </p>
           </div>
         </section>
