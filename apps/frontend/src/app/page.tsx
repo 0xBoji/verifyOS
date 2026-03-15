@@ -77,6 +77,10 @@ export default function Home() {
     setStatus(file ? `Attached ${file.name}` : "Project removed");
   };
 
+  const handleChooseProject = () => {
+    projectRef.current?.click();
+  };
+
   const handleUpload = async () => {
     if (!selectedFile || isUploading) {
       return;
@@ -234,10 +238,21 @@ export default function Home() {
               <button className="primary-button" type="button" onClick={handleChooseFile}>
                 Choose bundle
               </button>
+              <button className="secondary-button" type="button" onClick={handleChooseProject}>
+                Attach project zip
+              </button>
               <button className="secondary-button" type="button" onClick={handleExampleReport}>
                 View example report
               </button>
             </div>
+            <input
+              ref={projectRef}
+              className="file-input"
+              type="file"
+              accept=".zip"
+              onChange={handleProjectChange}
+              hidden
+            />
             <div className="hero-meta">
               <div>
                 <strong className="stat">2-4 min</strong>
