@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.8.0](https://github.com/0xBoji/verifyos-cli/compare/v0.7.3...v0.8.0) - 2026-03-15
+## [0.8.0](https://github.com/0xBoji/verifyOS/compare/v0.7.3...v0.8.0) - 2026-03-15
 
 ### Added
 
@@ -25,13 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ignore RUSTSEC-2024-0436 (paste unmaintained) in deny.toml
 - update agents.md with refined managed block identity
 
-## [0.7.3](https://github.com/0xBoji/verifyos-cli/compare/v0.7.2...v0.7.3) - 2026-03-13
+## [0.7.3](https://github.com/0xBoji/verifyOS/compare/v0.7.2...v0.7.3) - 2026-03-13
 
 ### Fixed
 
 - *(vscode)* release 0.1.5
 
-## [0.7.2](https://github.com/0xBoji/verifyos-cli/compare/v0.7.1...v0.7.2) - 2026-03-13
+## [0.7.2](https://github.com/0xBoji/verifyOS/compare/v0.7.1...v0.7.2) - 2026-03-13
 
 ### Added
 
@@ -48,13 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(vscode)* prepare 0.1.3 release
 - *(vscode)* clarify background diagnostics
 
-## [0.7.1](https://github.com/0xBoji/verifyos-cli/compare/v0.7.0...v0.7.1) - 2026-03-13
+## [0.7.1](https://github.com/0xBoji/verifyOS/compare/v0.7.0...v0.7.1) - 2026-03-13
 
 ### Added
 
 - *(lsp)* implement language server, consolidate profiles, and refactor reports
 
-## [0.7.0](https://github.com/0xBoji/verifyos-cli/compare/v0.6.1...v0.7.0) - 2026-03-13
+## [0.7.0](https://github.com/0xBoji/verifyOS/compare/v0.6.1...v0.7.0) - 2026-03-13
 
 ### Added
 
@@ -80,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(vscode)* document cli and extension
 - *(ci)* add vscode extension packaging flow
 
-## [0.6.1](https://github.com/0xBoji/verifyos-cli/compare/v0.6.0...v0.6.1) - 2026-03-13
+## [0.6.1](https://github.com/0xBoji/verifyOS/compare/v0.6.0...v0.6.1) - 2026-03-13
 
 ### Added
 
@@ -99,7 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(report)* snapshot handoff markdown
 - *(ci)* support workflow repair plan overrides
 
-## [0.6.0](https://github.com/0xBoji/verifyos-cli/compare/v0.5.0...v0.6.0) - 2026-03-13
+## [0.6.0](https://github.com/0xBoji/verifyOS/compare/v0.5.0...v0.6.0) - 2026-03-13
 
 ### Added
 
@@ -125,7 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(cli)* split command handlers
 - *(cli)* centralize agent asset layout
 
-## [0.5.0](https://github.com/0xBoji/verifyos-cli/compare/v0.4.0...v0.5.0) - 2026-03-13
+## [0.5.0](https://github.com/0xBoji/verifyOS/compare/v0.4.0...v0.5.0) - 2026-03-13
 
 ### Added
 
@@ -149,7 +149,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(ci)* align release workflows with voc
 - add commit discipline rules
 
-## [0.4.0](https://github.com/0xBoji/verifyos-cli/compare/v0.3.1...v0.4.0) - 2026-03-12
+## [0.4.0](https://github.com/0xBoji/verifyOS/compare/v0.3.1...v0.4.0) - 2026-03-12
 
 ### Added
 
@@ -170,7 +170,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - *(cli)* keep init agent outputs consistent
 
-## [0.3.1](https://github.com/0xBoji/verifyos-cli/compare/v0.3.0...v0.3.1) - 2026-03-12
+## [0.3.1](https://github.com/0xBoji/verifyOS/compare/v0.3.0...v0.3.1) - 2026-03-12
 
 ### Added
 
@@ -182,7 +182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Merge pull request #13 from 0xBoji/chore/release-plz2026-03-12T06-28-25Z
 - *(crate)* add ai keywords
 
-## [0.3.0](https://github.com/0xBoji/verifyos-cli/compare/v0.2.3...v0.3.0) - 2026-03-12
+## [0.3.0](https://github.com/0xBoji/verifyOS/compare/v0.2.3...v0.3.0) - 2026-03-12
 
 ### Added
 
@@ -202,7 +202,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(core)* cache bundle metadata
 - *(core)* cache artifact scans
 
-## [0.2.3](https://github.com/0xBoji/verifyos-cli/compare/v0.2.2...v0.2.3) - 2026-03-12
+## [0.2.3](https://github.com/0xBoji/verifyOS/compare/v0.2.2...v0.2.3) - 2026-03-12
 
 ### Fixed
 
@@ -213,7 +213,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - *(ci)* grant checks permission
 - *(ci)* expand workflows
 
-## [0.2.2](https://github.com/0xBoji/verifyos-cli/compare/v0.2.1...v0.2.2) - 2026-03-12
+## [0.2.2](https://github.com/0xBoji/verifyOS/compare/v0.2.1...v0.2.2) - 2026-03-12
 
 ### Added
 
@@ -234,7 +234,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - resize readme icon
 - add verifyOS icon
 
-## [0.2.1](https://github.com/0xBoji/verifyos-cli/compare/v0.2.0...v0.2.1) - 2026-03-11
+## [0.2.1](https://github.com/0xBoji/verifyOS/compare/v0.2.0...v0.2.1) - 2026-03-11
 
 ### Added
 
@@ -247,14 +247,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - use voc in baseline example
 - *(release)* fix release pr title
 
-## [0.2.0](https://github.com/0xBoji/verifyos-cli/compare/v0.1.7...v0.2.0) - 2026-03-11
+## [0.2.0](https://github.com/0xBoji/verifyOS/compare/v0.1.7...v0.2.0) - 2026-03-11
 
 ### Added
 
 - *(info-plist)* audit LSApplicationQueriesSchemes
 - *(signing)* check embedded team id consistency
 
-## [0.1.7](https://github.com/0xBoji/verifyos-cli/compare/v0.1.6...v0.1.7) - 2026-03-11
+## [0.1.7](https://github.com/0xBoji/verifyOS/compare/v0.1.6...v0.1.7) - 2026-03-11
 
 ### Added
 
@@ -274,13 +274,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add agent configs
 - *(ci)* add security audit and cache
 
-## [0.1.6](https://github.com/0xBoji/verifyos-cli/compare/v0.1.5...v0.1.6) - 2026-03-11
+## [0.1.6](https://github.com/0xBoji/verifyOS/compare/v0.1.5...v0.1.6) - 2026-03-11
 
 ### Other
 
 - fix output examples
 
-## [0.1.1](https://github.com/0xBoji/verifyos-cli/compare/v0.1.0...v0.1.1) - 2026-03-11
+## [0.1.1](https://github.com/0xBoji/verifyOS/compare/v0.1.0...v0.1.1) - 2026-03-11
 
 ### Other
 

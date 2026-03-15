@@ -10,8 +10,8 @@
   <a href="https://docs.rs/verifyos-cli">
     <img src="https://img.shields.io/docsrs/verifyos-cli" alt="Docs.rs" />
   </a>
-  <a href="https://github.com/0xBoji/verifyos-cli/actions/workflows/rust.yml">
-    <img src="https://github.com/0xBoji/verifyos-cli/actions/workflows/rust.yml/badge.svg" alt="CI" />
+  <a href="https://github.com/0xBoji/verifyOS/actions/workflows/rust.yml">
+    <img src="https://github.com/0xBoji/verifyOS/actions/workflows/rust.yml/badge.svg" alt="CI" />
   </a>
   <a href="https://opensource.org/licenses/MIT">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" />
@@ -74,13 +74,13 @@ Download the pre-built binary for your platform:
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/0xBoji/verifyos-cli/releases/latest/download/verifyos-cli-macos-arm64 -o voc && chmod +x voc
+curl -L https://github.com/0xBoji/verifyOS/releases/latest/download/verifyos-cli-macos-arm64 -o voc && chmod +x voc
 
 # macOS (Intel)
-curl -L https://github.com/0xBoji/verifyos-cli/releases/latest/download/verifyos-cli-macos-amd64 -o voc && chmod +x voc
+curl -L https://github.com/0xBoji/verifyOS/releases/latest/download/verifyos-cli-macos-amd64 -o voc && chmod +x voc
 
 # Linux (amd64)
-curl -L https://github.com/0xBoji/verifyos-cli/releases/latest/download/verifyos-cli-linux-amd64 -o voc && chmod +x voc
+curl -L https://github.com/0xBoji/verifyOS/releases/latest/download/verifyos-cli-linux-amd64 -o voc && chmod +x voc
 ```
 
 Move it to your PATH to use it globally:
@@ -465,7 +465,7 @@ on:
 
 jobs:
   voc:
-    uses: 0xBoji/verifyos-cli/.github/workflows/voc-analysis.yml@main
+    uses: 0xBoji/verifyOS/.github/workflows/voc-analysis.yml@main
     with:
       app_path: path/to/YourApp.ipa
       baseline_path: baseline.json

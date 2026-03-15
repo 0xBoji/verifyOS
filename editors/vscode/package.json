@@ -12,11 +12,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/0xBoji/verifyos-cli.git"
+    "url": "https://github.com/0xBoji/verifyOS.git"
   },
-  "homepage": "https://github.com/0xBoji/verifyos-cli/tree/main/editors/vscode",
+  "homepage": "https://github.com/0xBoji/verifyOS/tree/main/editors/vscode",
   "bugs": {
-    "url": "https://github.com/0xBoji/verifyos-cli/issues"
+    "url": "https://github.com/0xBoji/verifyOS/issues"
   },
   "engines": {
     "vscode": "^1.94.0"
