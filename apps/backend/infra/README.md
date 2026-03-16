@@ -38,7 +38,7 @@ Re-run `terraform apply` if you change `var.image_tag`.
 
 ## Env vars
 
-Provide required auth secrets via `var.env_vars`:
+Provide required auth secrets via `var.env_vars` (no defaults are set):
 
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
@@ -50,9 +50,9 @@ Example `terraform.tfvars`:
 
 ```hcl
 env_vars = {
-  REQUIRE_AUTH       = "true"
-  FRONTEND_BASE_URL  = "https://verify-os.vercel.app"
-  GOOGLE_CLIENT_ID   = "..."
+  REQUIRE_AUTH         = "true"
+  FRONTEND_BASE_URL    = "https://verify-os.vercel.app"
+  GOOGLE_CLIENT_ID     = "..."
   GOOGLE_CLIENT_SECRET = "..."
   GOOGLE_REDIRECT_URL  = "https://api.verifyos.com/api/v1/auth/google/callback"
 }

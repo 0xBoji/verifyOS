@@ -43,8 +43,5 @@ variable "memory" {
 variable "env_vars" {
   type        = map(string)
   description = "Environment variables passed into the backend container."
-  default = {
-    REQUIRE_AUTH      = "true"
-    FRONTEND_BASE_URL = "https://verify-os.vercel.app"
-  }
+  default     = {}
 }
