@@ -71,12 +71,12 @@ body {
   align-items: center;
   justify-content: space-between;
   max-width: 1100px;
-  width: 75%;
+  width: auto;
   margin: 0 auto 40px;
-  padding: 12px 20px;
+  padding: 16px 20px;
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid var(--ios-outline);
-  border-radius: 16px;
+  border-radius: 18px;
   box-shadow: var(--ios-shadow);
   backdrop-filter: blur(16px);
 }
