@@ -10,8 +10,8 @@ pub enum ExtractionError {
     Io(#[from] io::Error),
     #[error("Zip Error: {0}")]
     Zip(#[from] zip::result::ZipError),
-    #[error("Invalid IPA path")]
-    InvalidPath,
+    #[error("Invalid IPA path: {0}")]
+    InvalidPath(PathBuf),
 }
 
 pub struct ExtractedIpa {
@@ -37,7 +37,11 @@ impl ExtractedIpa {
 }
 
 pub fn extract_ipa<P: AsRef<Path>>(ipa_path: P) -> Result<ExtractedIpa, ExtractionError> {
-    let file = fs::File::open(ipa_path)?;
+    let path = ipa_path.as_ref();
+    if !path.exists() {
+        return Err(ExtractionError::InvalidPath(path.to_path_buf()));
+    }
+    let file = fs::File::open(path)?;
     let mut archive = ZipArchive::new(file)?;
     let temp_dir = tempfile::tempdir()?;
     let extract_path = temp_dir.path();
