@@ -29,6 +29,10 @@ body {
   background: linear-gradient(120deg, #f4f6ff 0%, #f7fcff 60%, #f0f3ff 100%);
 }
 
+:root {
+  --panel-width: 75%;
+}
+
 .page {
   position: relative;
   min-height: 100vh;
@@ -71,7 +75,7 @@ body {
   align-items: center;
   justify-content: space-between;
   max-width: 1100px;
-  width: auto;
+  width: var(--panel-width);
   margin: 0 auto 40px;
   padding: 16px 20px;
   background: rgba(255, 255, 255, 0.7);
@@ -253,7 +257,7 @@ body {
   backdrop-filter: blur(12px);
   display: grid;
   gap: 18px;
-  width: 100%;
+  width: var(--panel-width);
   max-width: 1100px;
   justify-self: stretch;
 }
