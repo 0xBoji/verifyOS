@@ -12,6 +12,13 @@ cargo run --manifest-path apps/backend/Cargo.toml
 
 The API listens on `http://127.0.0.1:7070` by default.
 
+Auth (optional):
+
+```bash
+export REQUIRE_AUTH=true
+export AUTH_DEV_MODE=true
+```
+
 Example request:
 
 ```bash
@@ -30,6 +37,18 @@ curl -X POST http://127.0.0.1:7070/api/v1/scan \
   -F "exclude=RULE_PRIVATE_API" \
   -F "baseline=@/path/to/baseline.json" \
   -F "format=markdown"
+```
+
+Auth flow (dev mode prints code in response):
+
+```bash
+curl -X POST http://127.0.0.1:7070/api/v1/auth/start \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@company.com"}'
+
+curl -X POST http://127.0.0.1:7070/api/v1/auth/verify \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@company.com","code":"ABC123"}'
 ```
 
 Include project context (zip a `.xcodeproj` or `.xcworkspace`):
@@ -69,6 +88,18 @@ bash apply-handoff.sh /path/to/project/root
 - `project` zip field with `.xcodeproj` or `.xcworkspace` (optional)
 
 Response: JSON report (same shape as `voc --format json`) or text output for `sarif`/`markdown`.
+
+`POST /api/v1/auth/start`
+
+- JSON body: `{ "email": "you@company.com" }`
+
+Response: `{ "status": "sent", "dev_code": "ABC123" }` (dev mode only).
+
+`POST /api/v1/auth/verify`
+
+- JSON body: `{ "email": "you@company.com", "code": "ABC123" }`
+
+Response: `{ "token": "...", "email": "...", "expires_in_seconds": 86400 }`.
 
 `POST /api/v1/handoff`
 
