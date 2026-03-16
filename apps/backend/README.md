@@ -12,11 +12,14 @@ cargo run --manifest-path apps/backend/Cargo.toml
 
 The API listens on `http://127.0.0.1:7070` by default.
 
-Auth (optional):
+Auth (optional, Google OAuth):
 
 ```bash
 export REQUIRE_AUTH=true
-export AUTH_DEV_MODE=true
+export GOOGLE_CLIENT_ID=your-google-client-id
+export GOOGLE_CLIENT_SECRET=your-google-client-secret
+export GOOGLE_REDIRECT_URL=https://api.verifyos.com/api/v1/auth/google/callback
+export FRONTEND_BASE_URL=https://verify-os.vercel.app
 ```
 
 Example request:
@@ -39,17 +42,10 @@ curl -X POST http://127.0.0.1:7070/api/v1/scan \
   -F "format=markdown"
 ```
 
-Auth flow (dev mode prints code in response):
+Auth flow:
 
-```bash
-curl -X POST http://127.0.0.1:7070/api/v1/auth/start \
-  -H "Content-Type: application/json" \
-  -d '{"email":"you@company.com"}'
-
-curl -X POST http://127.0.0.1:7070/api/v1/auth/verify \
-  -H "Content-Type: application/json" \
-  -d '{"email":"you@company.com","code":"ABC123"}'
-```
+- `GET /api/v1/auth/google` redirects to Google.
+- `GET /api/v1/auth/google/callback` redirects to the frontend with `?token=`.
 
 Include project context (zip a `.xcodeproj` or `.xcworkspace`):
 
@@ -89,17 +85,13 @@ bash apply-handoff.sh /path/to/project/root
 
 Response: JSON report (same shape as `voc --format json`) or text output for `sarif`/`markdown`.
 
-`POST /api/v1/auth/start`
+`GET /api/v1/auth/google`
 
-- JSON body: `{ "email": "you@company.com" }`
+Redirects to Google OAuth.
 
-Response: `{ "status": "sent", "dev_code": "ABC123" }` (dev mode only).
+`GET /api/v1/auth/google/callback`
 
-`POST /api/v1/auth/verify`
-
-- JSON body: `{ "email": "you@company.com", "code": "ABC123" }`
-
-Response: `{ "token": "...", "email": "...", "expires_in_seconds": 86400 }`.
+Redirects back to `FRONTEND_BASE_URL` with `?token=...`.
 
 `POST /api/v1/handoff`
 
