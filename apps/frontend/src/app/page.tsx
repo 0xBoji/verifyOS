@@ -21,45 +21,115 @@ export default function Home() {
 
   const examplePayload = {
     report: {
-      ruleset_version: "0.8.1",
-      generated_at_unix: 0,
-      total_duration_ms: 842,
+      ruleset_version: "0.8.2",
+      generated_at_unix: 1710604800,
+      total_duration_ms: 1240,
       cache_stats: {
-        nested_bundles: { hits: 1, misses: 0 },
-        usage_scan: { hits: 2, misses: 0 },
+        nested_bundles: { hits: 2, misses: 1 },
+        usage_scan: { hits: 0, misses: 4 },
         private_api_scan: { hits: 0, misses: 1 },
       },
       results: [
+        {
+          rule_id: "RULE_XCODE_26_MANDATE",
+          rule_name: "Xcode 26 / iOS 26 SDK Mandate",
+          category: "Compliance",
+          severity: "Error",
+          status: "Fail",
+          message: "App was built with Xcode 15.4 (15F31d) and iOS 17.5 SDK",
+          recommendation: "From April 2026, all apps must be built with Xcode 26 and the iOS 26 SDK.",
+          duration_ms: 5,
+        },
         {
           rule_id: "RULE_PRIVACY_MANIFEST",
           rule_name: "Missing Privacy Manifest",
           category: "Privacy",
           severity: "Error",
           status: "Fail",
-          message: "Missing PrivacyInfo.xcprivacy",
-          recommendation: "Add a PrivacyInfo.xcprivacy manifest to the bundle.",
-          duration_ms: 12,
+          message: "PrivacyInfo.xcprivacy was not found in the main bundle",
+          recommendation: "Add a PrivacyInfo.xcprivacy file to your app bundle to declare data collection and and accessed APIs.",
+          duration_ms: 8,
         },
         {
-          rule_id: "RULE_USAGE_DESCRIPTIONS",
-          rule_name: "Missing Usage Description Keys",
+          rule_id: "RULE_PRIVACY_SDK_CROSSCHECK",
+          rule_name: "Privacy Manifest vs SDK Usage",
           category: "Privacy",
-          severity: "Warning",
+          severity: "Error",
           status: "Fail",
-          message: "Missing required usage description keys",
-          recommendation: "Add NS*UsageDescription keys to Info.plist.",
-          duration_ms: 9,
+          message: "Detected GoogleAnalytics and FirebaseSDK but they are not declared in the manifest.",
+          recommendation: "Ensure PrivacyInfo.xcprivacy declares data collection and accessed APIs for all included third-party SDKs.",
+          duration_ms: 450,
         },
         {
-          rule_id: "RULE_ATS_GRANULARITY",
-          rule_name: "ATS Exceptions Too Broad",
+          rule_id: "RULE_ENTITLEMENTS_MISMATCH",
+          rule_name: "Debug Entitlements Present",
+          category: "Entitlements",
+          severity: "Error",
+          status: "Fail",
+          message: "Found get-task-allow=true in app entitlements",
+          recommendation: "Remove the get-task-allow entitlement for App Store production builds.",
+          duration_ms: 15,
+        },
+        {
+          rule_id: "RULE_BUNDLE_RESOURCE_LEAKAGE",
+          rule_name: "Sensitive Files in Bundle",
+          category: "Bundle",
+          severity: "Error",
+          status: "Fail",
+          message: "Found .env and development.p12 inside the app bundle",
+          recommendation: "Remove certificates, provisioning profiles, or secret files from the app bundle before submission.",
+          duration_ms: 25,
+        },
+        {
+          rule_id: "RULE_CAMERA_USAGE",
+          rule_name: "Missing Camera Usage Description",
+          category: "Privacy",
+          severity: "Error",
+          status: "Fail",
+          message: "NSCameraUsageDescription is missing from Info.plist",
+          recommendation: "Add NSCameraUsageDescription with a clear, user-facing reason why your app needs camera access.",
+          duration_ms: 4,
+        },
+        {
+          rule_id: "RULE_ATS_AUDIT",
+          rule_name: "ATS Exceptions Detected",
           category: "Ats",
           severity: "Warning",
           status: "Fail",
-          message: "AllowsArbitraryLoads is enabled",
-          recommendation: "Scope ATS exceptions to specific domains.",
-          duration_ms: 8,
+          message: "NSAllowsArbitraryLoads is enabled globally",
+          recommendation: "Remove global ATS exceptions or scope them to specific domains with strong justification.",
+          duration_ms: 12,
         },
+        {
+          rule_id: "RULE_LSAPPLICATIONQUERIES_SCHEMES_AUDIT",
+          rule_name: "LSApplicationQueriesSchemes Audit",
+          category: "Metadata",
+          severity: "Warning",
+          status: "Fail",
+          message: "Found 5+ potentially generic or private schemes in allowlist",
+          recommendation: "Keep LSApplicationQueriesSchemes minimal and aligned with actual app handoff requirements.",
+          duration_ms: 10,
+        },
+        {
+          rule_id: "RULE_EXPORT_COMPLIANCE",
+          rule_name: "Export Compliance Declaration",
+          category: "Metadata",
+          severity: "Warning",
+          status: "Fail",
+          message: "ITSAppUsesNonExemptEncryption is not set",
+          recommendation: "Explicitly set ITSAppUsesNonExemptEncryption in Info.plist to avoid App Store Connect prompts.",
+          duration_ms: 5,
+        },
+        {
+          rule_id: "RULE_PRIVATE_API",
+          rule_name: "Private API Usage Detected",
+          category: "Private API",
+          severity: "Warning",
+          status: "Fail",
+          message: "Potential usage of _GSSystemAdditions detected in binary",
+          recommendation: "Remove private API usage or replace with public alternatives to avoid rejection.",
+          duration_ms: 600,
+        }
       ],
     },
   };
@@ -464,11 +534,20 @@ export default function Home() {
                                   </div>
                                   <div className="tree-finding-meta">
                                     <span>Rule: {item.rule_id}</span>
-                                    {item.duration_ms && <span>{item.duration_ms}ms</span>}
+                                    {typeof item.duration_ms === "number" && (
+                                      <span>{item.duration_ms}ms</span>
+                                    )}
                                   </div>
                                   <div className="tree-finding-desc">
                                     {item.message}
                                   </div>
+                                  {item.evidence && (
+                                    <pre className="tree-finding-evidence">
+                                      {typeof item.evidence === "string" 
+                                        ? item.evidence 
+                                        : JSON.stringify(item.evidence, null, 2)}
+                                    </pre>
+                                  )}
                                   {item.recommendation && (
                                     <div className="tree-finding-rec">
                                       {item.recommendation}
