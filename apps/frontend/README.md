@@ -20,6 +20,14 @@ cargo run --manifest-path apps/backend/Cargo.toml
 
 The UI expects the backend at `http://127.0.0.1:7070` unless otherwise configured.
 
+Override the backend URL with:
+
+```bash
+export NEXT_PUBLIC_BACKEND_URL=https://api.verifyos.com
+```
+
+The Google login button redirects to `${NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/google`.
+
 ## Development Notes
 
 - Main UI: `app/page.tsx`
