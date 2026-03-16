@@ -471,6 +471,11 @@ body {
   color: #a86a05;
 }
 
+.pill-chip.is-active {
+  box-shadow: 0 0 12px currentColor;
+  transform: scale(1.05);
+}
+
 .copy-button {
   gap: 8px;
 }

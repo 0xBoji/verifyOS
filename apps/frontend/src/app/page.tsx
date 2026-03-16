@@ -16,6 +16,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [severityFilter, setSeverityFilter] = useState<string | null>(null);
   const backendBaseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:7070";
 
@@ -310,6 +311,14 @@ export default function Home() {
     setExpandedCategories(next);
   };
 
+  const expandAll = (categories: string[]) => {
+    setExpandedCategories(new Set(categories));
+  };
+
+  const collapseAll = () => {
+    setExpandedCategories(new Set());
+  };
+
   return (
     <div className="page">
       <div className="page-glow page-glow--left" />
@@ -483,25 +492,47 @@ export default function Home() {
                 </div>
 
                 <div className="result-card">
-                  <div className="result-header">Findings by severity</div>
+                  <div className="result-header">
+                    <span>Findings by severity</span>
+                    {severityFilter && (
+                      <button className="ghost-button" style={{ fontSize: "10px", padding: "2px 8px" }} onClick={() => setSeverityFilter(null)}>
+                        Clear filter
+                      </button>
+                    )}
+                  </div>
                   <div className="pill-row">
                     {Object.entries(summary.bySeverity).map(([name, count]) => (
-                      <div
+                      <button
                         key={name}
-                        className={`pill-chip pill-chip--${name.toLowerCase()}`}
+                        className={`pill-chip pill-chip--${name.toLowerCase()} ${severityFilter === name ? "is-active" : ""}`}
+                        onClick={() => setSeverityFilter(severityFilter === name ? null : name)}
+                        style={{ border: severityFilter === name ? "1px solid currentColor" : "1px solid transparent", cursor: "pointer" }}
                       >
                         {name === "Error" ? <FiAlertCircle /> : <FiAlertTriangle />}
                         <span>{name}</span>
                         <strong>{count}</strong>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
 
                 <div className="result-card">
-                  <div className="result-header">Findings Explorer</div>
+                  <div className="result-header">
+                    <span>Findings Explorer</span>
+                    <div className="pill-row">
+                      <button className="ghost-button" style={{ fontSize: "10px", padding: "2px 8px" }} onClick={() => expandAll(Object.keys(summary.findingsByCategory))}>
+                        Expand all
+                      </button>
+                      <button className="ghost-button" style={{ fontSize: "10px", padding: "2px 8px" }} onClick={collapseAll}>
+                        Collapse all
+                      </button>
+                    </div>
+                  </div>
                   <div className="tree-view">
-                    {Object.entries(summary.findingsByCategory).sort().map(([category, items]) => {
+                    {Object.entries(summary.findingsByCategory).sort().map(([category, rawItems]) => {
+                      const items = severityFilter ? (rawItems as any[]).filter(i => i.severity === severityFilter) : (rawItems as any[]);
+                      if (items.length === 0) return null;
+
                       const isExpanded = expandedCategories.has(category);
                       const catErrors = items.filter((i: any) => i.severity === "Error").length;
                       return (
@@ -518,13 +549,13 @@ export default function Home() {
                                 </span>
                               )}
                               <span className="tree-badge">
-                                {items.length} items
+                                {items.length} {severityFilter ? severityFilter.toLowerCase() : "item"}s
                               </span>
                             </div>
                           </div>
                           {isExpanded && (
                             <div className="tree-content">
-                              {(items as any[]).map((item, idx) => (
+                              {items.map((item, idx) => (
                                 <div key={idx} className="tree-finding">
                                   <div className="tree-finding-title">
                                     <strong>{item.rule_name}</strong>
