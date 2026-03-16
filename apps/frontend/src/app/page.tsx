@@ -14,12 +14,7 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [authEmail, setAuthEmail] = useState("");
-  const [authCode, setAuthCode] = useState("");
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const [authStatus, setAuthStatus] = useState<string | null>(null);
-  const [authBusy, setAuthBusy] = useState(false);
-  const authEmailRef = useRef<HTMLInputElement>(null);
 
   const examplePayload = {
     report: {
@@ -72,12 +67,8 @@ export default function Home() {
 
   useEffect(() => {
     const token = localStorage.getItem("verifyos_auth_token");
-    const email = localStorage.getItem("verifyos_auth_email");
     if (token) {
       setAuthToken(token);
-    }
-    if (email) {
-      setAuthEmail(email);
     }
   }, []);
 
@@ -87,85 +78,8 @@ export default function Home() {
       }
     : undefined;
 
-  const handleAuthStart = async () => {
-    if (!authEmail || authBusy) {
-      return;
-    }
-    setAuthBusy(true);
-    setAuthStatus("Sending login code...");
-    try {
-      const response = await fetch("http://127.0.0.1:7070/api/v1/auth/start", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: authEmail }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setAuthStatus(
-          typeof payload?.error === "string" ? payload.error : "Login failed"
-        );
-        return;
-      }
-      if (payload?.dev_code) {
-        setAuthStatus(`Code: ${payload.dev_code}`);
-      } else {
-        setAuthStatus("Check your inbox for the login code.");
-      }
-    } catch (error) {
-      setAuthStatus("Failed to reach auth service.");
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const handleAuthVerify = async () => {
-    if (!authEmail || !authCode || authBusy) {
-      return;
-    }
-    setAuthBusy(true);
-    setAuthStatus("Verifying code...");
-    try {
-      const response = await fetch("http://127.0.0.1:7070/api/v1/auth/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: authEmail, code: authCode }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setAuthStatus(
-          typeof payload?.error === "string" ? payload.error : "Invalid code"
-        );
-        return;
-      }
-      if (payload?.token) {
-        setAuthToken(payload.token);
-        localStorage.setItem("verifyos_auth_token", payload.token);
-        localStorage.setItem("verifyos_auth_email", authEmail);
-        setAuthStatus("Signed in.");
-        setAuthCode("");
-      } else {
-        setAuthStatus("Invalid response from auth service.");
-      }
-    } catch (error) {
-      setAuthStatus("Failed to verify code.");
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const handleAuthSignOut = () => {
-    setAuthToken(null);
-    setAuthStatus("Signed out.");
-    localStorage.removeItem("verifyos_auth_token");
-    localStorage.removeItem("verifyos_auth_email");
-  };
-
-  const handleAuthFocus = () => {
-    authEmailRef.current?.focus();
+  const handleGoogleLogin = () => {
+    window.location.href = "http://127.0.0.1:7070/api/v1/auth/google";
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -348,7 +262,7 @@ export default function Home() {
           >
             Docs
           </a>
-          <button className="secondary-button google-button" type="button" onClick={handleAuthFocus}>
+          <button className="secondary-button google-button" type="button" onClick={handleGoogleLogin}>
             Google login
           </button>
         </div>
@@ -373,59 +287,6 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="auth-panel">
-          <div className="auth-card">
-            <div className="auth-copy">
-              <h3>Email login</h3>
-              <p>Enable rate-limited scans and keep audit access tied to you.</p>
-            </div>
-            {authToken ? (
-              <div className="auth-signed">
-                <div className="auth-status">Signed in as {authEmail}</div>
-                <button className="ghost-button" type="button" onClick={handleAuthSignOut}>
-                  Sign out
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="auth-form">
-                  <input
-                    ref={authEmailRef}
-                    className="auth-input"
-                    type="email"
-                    placeholder="you@company.com"
-                    value={authEmail}
-                    onChange={(event) => setAuthEmail(event.target.value)}
-                  />
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    onClick={handleAuthStart}
-                    disabled={authBusy || !authEmail}
-                  >
-                    Send code
-                  </button>
-                  <input
-                    className="auth-input auth-input--code"
-                    type="text"
-                    placeholder="Code"
-                    value={authCode}
-                    onChange={(event) => setAuthCode(event.target.value)}
-                  />
-                  <button
-                    className="primary-button"
-                    type="button"
-                    onClick={handleAuthVerify}
-                    disabled={authBusy || !authCode}
-                  >
-                    Verify
-                  </button>
-                </div>
-                {authStatus ? <div className="auth-status">{authStatus}</div> : null}
-              </>
-            )}
-          </div>
-        </section>
 
         <section className="steps">
           <div className="step">
