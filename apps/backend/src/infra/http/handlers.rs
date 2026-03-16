@@ -1,20 +1,11 @@
-use crate::app::{AuthError, AppState, ScanError};
-use crate::domain::{
-    AuthStartRequest, AuthStartResponse, AuthVerifyRequest, AuthVerifyResponse, ScanProfileInput,
-    ScanRequest,
-};
-use axum::extract::{Multipart, Query, State};
-use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
+use crate::app::{AppState, RateLimitError, ScanError};
+use crate::domain::{ScanProfileInput, ScanRequest};
+use axum::extract::{Multipart, State};
+use axum::http::header::CONTENT_TYPE;
 use axum::http::HeaderMap;
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Redirect};
+use axum::response::IntoResponse;
 use axum::Json;
-use oauth2::basic::BasicClient;
-use oauth2::reqwest::async_http_client;
-use oauth2::{
-    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl,
-};
-use serde::Deserialize;
 use serde_json::json;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -23,23 +14,6 @@ use tracing::info;
 use verifyos_cli::report::{apply_agent_pack_baseline, render_markdown, render_sarif, TimingMode};
 use zip::ZipArchive;
 use zip::{write::FileOptions, ZipWriter};
-
-const DEFAULT_FRONTEND_BASE_URL: &str = "https://verify-os.vercel.app";
-const GOOGLE_AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
-const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
-const GOOGLE_USERINFO_URL: &str = "https://openidconnect.googleapis.com/v1/userinfo";
-
-#[derive(Debug, Deserialize)]
-struct GoogleCallbackQuery {
-    code: Option<String>,
-    state: Option<String>,
-    error: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GoogleUserInfo {
-    email: Option<String>,
-}
 
 #[derive(Clone, Copy)]
 enum ScanOutputFormat {
@@ -70,210 +44,12 @@ pub async fn health() -> impl IntoResponse {
     StatusCode::OK
 }
 
-fn google_client() -> Result<(BasicClient, String), String> {
-    let client_id = std::env::var("GOOGLE_CLIENT_ID")
-        .map_err(|_| "missing GOOGLE_CLIENT_ID".to_string())?;
-    let client_secret = std::env::var("GOOGLE_CLIENT_SECRET")
-        .map_err(|_| "missing GOOGLE_CLIENT_SECRET".to_string())?;
-    let redirect_url = std::env::var("GOOGLE_REDIRECT_URL")
-        .map_err(|_| "missing GOOGLE_REDIRECT_URL".to_string())?;
-    let frontend_base_url =
-        std::env::var("FRONTEND_BASE_URL").unwrap_or_else(|_| DEFAULT_FRONTEND_BASE_URL.to_string());
-
-    let client = BasicClient::new(
-        ClientId::new(client_id),
-        Some(ClientSecret::new(client_secret)),
-        AuthUrl::new(GOOGLE_AUTH_URL.to_string()).map_err(|err| err.to_string())?,
-        Some(TokenUrl::new(GOOGLE_TOKEN_URL.to_string()).map_err(|err| err.to_string())?),
-    )
-    .set_redirect_uri(RedirectUrl::new(redirect_url).map_err(|err| err.to_string())?);
-
-    Ok((client, frontend_base_url))
-}
-
-pub async fn start_google_auth(State(state): State<AppState>) -> impl IntoResponse {
-    let (client, _) = match google_client() {
-        Ok(config) => config,
-        Err(message) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": message })),
-            )
-                .into_response();
-        }
-    };
-
-    let state_value = state.auth.start_oauth_state().await;
-    let (auth_url, _csrf_token) = client
-        .authorize_url(|| CsrfToken::new(state_value.clone()))
-        .add_scope(Scope::new("openid".to_string()))
-        .add_scope(Scope::new("email".to_string()))
-        .add_scope(Scope::new("profile".to_string()))
-        .url();
-
-    Redirect::temporary(auth_url.as_ref()).into_response()
-}
-
-pub async fn handle_google_callback(
-    State(state): State<AppState>,
-    Query(query): Query<GoogleCallbackQuery>,
-) -> impl IntoResponse {
-    let (client, frontend_base_url) = match google_client() {
-        Ok(config) => config,
-        Err(message) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": message })),
-            )
-                .into_response();
-        }
-    };
-
-    if let Some(error) = query.error {
-        let redirect_url = format!("{frontend_base_url}/?auth_error={error}");
-        return Redirect::temporary(&redirect_url).into_response();
-    }
-
-    let Some(code) = query.code else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "missing code" })),
-        )
-            .into_response();
-    };
-    let Some(state_value) = query.state else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "missing state" })),
-        )
-            .into_response();
-    };
-
-    if let Err(err) = state.auth.consume_oauth_state(&state_value).await {
-        return auth_error_response(err);
-    }
-
-    let token = match client
-        .exchange_code(AuthorizationCode::new(code))
-        .request_async(async_http_client)
-        .await
-    {
-        Ok(token) => token,
-        Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": "oauth exchange failed" })),
-            )
-                .into_response();
-        }
-    };
-
-    let access_token = token.access_token().secret();
-    let userinfo = match reqwest::Client::new()
-        .get(GOOGLE_USERINFO_URL)
-        .bearer_auth(access_token)
-        .send()
-        .await
-    {
-        Ok(response) => response,
-        Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": "failed to fetch user info" })),
-            )
-                .into_response();
-        }
-    };
-
-    let profile: GoogleUserInfo = match userinfo.json().await {
-        Ok(profile) => profile,
-        Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": "invalid user info response" })),
-            )
-                .into_response();
-        }
-    };
-
-    let Some(email) = profile.email else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "email not available" })),
-        )
-            .into_response();
-    };
-
-    let token = match state.auth.issue_session(&email).await {
-        Ok(token) => token,
-        Err(err) => return auth_error_response(err),
-    };
-
-    let redirect_url = format!("{frontend_base_url}/?token={}", token.token);
-    Redirect::temporary(&redirect_url).into_response()
-}
-
-pub async fn start_auth(
-    State(state): State<AppState>,
-    Json(payload): Json<AuthStartRequest>,
-) -> impl IntoResponse {
-    if payload.email.trim().is_empty() || !payload.email.contains('@') {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "valid email is required" })),
-        )
-            .into_response();
-    }
-
-    let code = state.auth.start_login(&payload.email).await;
-    info!("login code for {} is {}", payload.email, code);
-    let response = AuthStartResponse {
-        status: "sent".to_string(),
-        dev_code: if state.auth.dev_mode() {
-            Some(code)
-        } else {
-            None
-        },
-    };
-    (StatusCode::OK, Json(response)).into_response()
-}
-
-pub async fn verify_auth(
-    State(state): State<AppState>,
-    Json(payload): Json<AuthVerifyRequest>,
-) -> impl IntoResponse {
-    if payload.email.trim().is_empty() || payload.code.trim().is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "email and code are required" })),
-        )
-            .into_response();
-    }
-
-    match state
-        .auth
-        .verify_code(&payload.email, &payload.code.to_uppercase())
-        .await
-    {
-        Ok(token) => (
-            StatusCode::OK,
-            Json(AuthVerifyResponse {
-                token: token.token,
-                email: token.email,
-                expires_in_seconds: token.expires_in_seconds,
-            }),
-        )
-            .into_response(),
-        Err(err) => auth_error_response(err),
-    }
-}
-
 pub async fn scan_bundle(
     State(state): State<AppState>,
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
-    if let Err(response) = require_auth(&state, &headers).await {
+    if let Err(response) = require_rate_limit(&state, &headers).await {
         return response;
     }
 
@@ -443,7 +219,7 @@ pub async fn handoff_bundle(
     headers: HeaderMap,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
-    if let Err(response) = require_auth(&state, &headers).await {
+    if let Err(response) = require_rate_limit(&state, &headers).await {
         return response;
     }
 
@@ -679,57 +455,47 @@ fn error_body(err: ScanError) -> serde_json::Value {
     json!({ "error": err.to_string() })
 }
 
-fn auth_error_response(err: AuthError) -> axum::response::Response {
+fn rate_limit_error_response(err: RateLimitError) -> axum::response::Response {
     match err {
-        AuthError::RateLimited => (
+        RateLimitError::Exceeded => (
             StatusCode::TOO_MANY_REQUESTS,
             Json(json!({ "error": "rate limit exceeded" })),
         )
             .into_response(),
-        AuthError::InvalidCode => (
-            StatusCode::UNAUTHORIZED,
-            Json(json!({ "error": "invalid or expired code" })),
-        )
-            .into_response(),
-        AuthError::InvalidState => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "invalid oauth state" })),
-        )
-            .into_response(),
-        _ => (
-            StatusCode::UNAUTHORIZED,
-            Json(json!({ "error": "unauthorized" })),
-        )
-            .into_response(),
     }
 }
 
-async fn require_auth(state: &AppState, headers: &HeaderMap) -> Result<(), axum::response::Response> {
-    if !state.require_auth {
-        return Ok(());
-    }
-    let Some(token) = bearer_token(headers) else {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(json!({ "error": "missing auth token" })),
-        )
-            .into_response());
-    };
-    match state.auth.authorize(&token).await {
+async fn require_rate_limit(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Result<(), axum::response::Response> {
+    let ip = client_ip(headers).unwrap_or_else(|| "unknown".to_string());
+    match state.rate_limit.check(&ip).await {
         Ok(_) => Ok(()),
-        Err(err) => Err(auth_error_response(err)),
+        Err(err) => Err(rate_limit_error_response(err)),
     }
 }
 
-fn bearer_token(headers: &HeaderMap) -> Option<String> {
-    let header = headers.get(AUTHORIZATION)?;
-    let value = header.to_str().ok()?;
-    let value = value.trim();
-    if let Some(token) = value.strip_prefix("Bearer ") {
-        Some(token.trim().to_string())
-    } else {
-        None
+fn client_ip(headers: &HeaderMap) -> Option<String> {
+    if let Some(forwarded) = headers.get("x-forwarded-for") {
+        if let Ok(value) = forwarded.to_str() {
+            if let Some(first) = value.split(',').next() {
+                let trimmed = first.trim();
+                if !trimmed.is_empty() {
+                    return Some(trimmed.to_string());
+                }
+            }
+        }
     }
+    if let Some(real_ip) = headers.get("x-real-ip") {
+        if let Ok(value) = real_ip.to_str() {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                return Some(trimmed.to_string());
+            }
+        }
+    }
+    None
 }
 
 fn to_error(err: impl std::fmt::Display) -> (StatusCode, Json<serde_json::Value>) {
