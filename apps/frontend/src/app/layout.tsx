@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   description:
     "Scan iOS bundles for App Store review risks with agent-ready reports.",
   icons: {
-    icon: "/logo/verifyOS_web_128x.png",
-    shortcut: "/logo/verifyOS_web_128x.png",
-    apple: "/logo/verifyOS_web_128x.png",
+    icon: "/logo/verifyOS_web_128x_round.png",
+    shortcut: "/logo/verifyOS_web_128x_round.png",
+    apple: "/logo/verifyOS_web_128x_round.png",
   },
 };
 
