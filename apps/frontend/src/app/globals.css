@@ -122,12 +122,6 @@ body {
   gap: 12px;
 }
 
-.google-button {
-  border: 1px solid rgba(12, 18, 34, 0.16);
-  background: #ffffff;
-  box-shadow: 0 10px 22px rgba(12, 18, 34, 0.12);
-}
-
 .primary-button,
 .secondary-button,
 .ghost-button {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { FaGithub } from "react-icons/fa";
 import { SiRust } from "react-icons/si";
 import { VscVscode } from "react-icons/vsc";
@@ -14,8 +14,6 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(null);
-
   const backendBaseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:7070";
 
@@ -68,37 +66,6 @@ export default function Home() {
     fileRef.current?.click();
   };
 
-  useEffect(() => {
-    const token = localStorage.getItem("verifyos_auth_token");
-    if (token) {
-      setAuthToken(token);
-    }
-    if (typeof window === "undefined") {
-      return;
-    }
-    const params = new URLSearchParams(window.location.search);
-    const tokenFromUrl = params.get("token");
-    if (tokenFromUrl) {
-      setAuthToken(tokenFromUrl);
-      localStorage.setItem("verifyos_auth_token", tokenFromUrl);
-      params.delete("token");
-      const newUrl = `${window.location.pathname}${
-        params.toString() ? `?${params.toString()}` : ""
-      }`;
-      window.history.replaceState({}, "", newUrl);
-    }
-  }, []);
-
-  const authHeaders = authToken
-    ? {
-        Authorization: `Bearer ${authToken}`,
-      }
-    : undefined;
-
-  const handleGoogleLogin = () => {
-    window.location.href = `${backendBaseUrl}/api/v1/auth/google`;
-  };
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     setSelectedFile(file);
@@ -125,7 +92,6 @@ export default function Home() {
       const response = await fetch(`${backendBaseUrl}/api/v1/scan`, {
         method: "POST",
         body: form,
-        headers: authHeaders,
       });
 
       const rawText = await response.text();
@@ -182,7 +148,6 @@ export default function Home() {
       const response = await fetch(`${backendBaseUrl}/api/v1/handoff`, {
         method: "POST",
         body: form,
-        headers: authHeaders,
       });
 
       if (!response.ok) {
@@ -279,9 +244,6 @@ export default function Home() {
           >
             Docs
           </a>
-          <button className="secondary-button google-button" type="button" onClick={handleGoogleLogin}>
-            Google login
-          </button>
         </div>
       </header>
 
