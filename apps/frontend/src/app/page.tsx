@@ -405,13 +405,13 @@ export default function Home() {
               <div className="dropzone-content">
                 <div className="drop-icon">⬆</div>
                 <strong>Drag &amp; drop your bundle</strong>
-                <span>.ipa or .app, up to 1GB</span>
+                <span>.ipa, .app, .zip or Xcode files, up to 1GB</span>
               </div>
               <input
                 ref={fileRef}
                 className="file-input"
                 type="file"
-                accept=".ipa,.app"
+                accept=".ipa,.app,.zip,.xcodeproj,.xcworkspace,.pbxproj,.xcworkspacedata,.plist"
                 onChange={handleFileChange}
                 hidden
               />
