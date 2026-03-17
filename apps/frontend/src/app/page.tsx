@@ -43,15 +43,31 @@ export default function Home() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "ast">("list");
   const [astFocus, setAstFocus] = useState<string | null>(null);
+  const [isASTModalOpen, setIsASTModalOpen] = useState(false);
 
   useEffect(() => {
-    if (viewMode === 'ast' && astFocus) {
-      const el = document.getElementById(`ast-node-${astFocus}`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-      }
+    if (isASTModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
     }
-  }, [viewMode, astFocus]);
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isASTModalOpen]);
+
+  useEffect(() => {
+    if (isASTModalOpen && astFocus) {
+      // Small delay to ensure modal content is rendered
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`ast-node-${astFocus}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isASTModalOpen, astFocus]);
   const backendBaseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:7070";
 
@@ -521,6 +537,22 @@ export default function Home() {
     );
   };
 
+  const ASTModal = () => {
+    if (!isASTModalOpen) return null;
+
+    return (
+      <div className="ast-modal-overlay">
+        <div className="ast-modal-content">
+          <div className="ast-modal-header">
+            <h3>Diagnostic AST</h3>
+            <button className="ghost-button" onClick={() => setIsASTModalOpen(false)}>Close</button>
+          </div>
+          <ASTViewer data={result} />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="page">
       <div className="page-glow page-glow--left" />
@@ -801,8 +833,7 @@ export default function Home() {
                     <span>Findings Explorer</span>
                     <div className="pill-row" style={{ alignItems: 'center' }}>
                       <div className="mode-toggle">
-                        <button className={viewMode === 'list' ? 'is-active' : ''} onClick={() => setViewMode('list')}>List</button>
-                        <button className={viewMode === 'ast' ? 'is-active' : ''} onClick={() => setViewMode('ast')}>AST Mode</button>
+                        <button className="is-active" onClick={() => setIsASTModalOpen(true)}>Visualize AST</button>
                       </div>
                       <div style={{ width: '1px', height: '16px', background: 'var(--ios-outline)', margin: '0 4px' }} />
                       <button className="ghost-button" style={{ fontSize: "10px", padding: "2px 8px" }} onClick={() => expandAll(Object.keys(summary.findingsByCategory))}>
@@ -813,9 +844,6 @@ export default function Home() {
                       </button>
                     </div>
                   </div>
-                  {viewMode === 'ast' ? (
-                    <ASTViewer data={result} />
-                  ) : (
                   <div className="tree-view">
                     {Object.entries(summary.findingsByCategory).sort().map(([category, rawItems]) => {
                       const items = severityFilter ? (rawItems as Finding[]).filter(i => i.severity === severityFilter) : (rawItems as Finding[]);
@@ -852,8 +880,8 @@ export default function Home() {
                                           className="ghost-button" 
                                           style={{ fontSize: '9px', padding: '2px 6px', height: 'auto', background: 'rgba(0,122,255,0.1)', color: '#007aff' }}
                                           onClick={() => {
-                                            setViewMode('ast');
                                             setAstFocus(item.rule_id);
+                                            setIsASTModalOpen(true);
                                           }}
                                         >
                                           Draw
@@ -895,7 +923,6 @@ export default function Home() {
                       );
                     })}
                   </div>
-                  )}
                 </div>
 
                 <div className="result-card">
@@ -999,6 +1026,7 @@ export default function Home() {
           </nav>
         </footer>
       </main>
+      <ASTModal />
     </div>
   );
 }
