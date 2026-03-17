@@ -4,10 +4,24 @@ import { useMemo, useRef, useState } from "react";
 import { FaGithub, FaChevronRight } from "react-icons/fa";
 import { SiRust } from "react-icons/si";
 import { VscVscode } from "react-icons/vsc";
-import { FiAlertCircle, FiAlertTriangle } from "react-icons/fi";
+import { FiAlertCircle, FiAlertTriangle, FiFolder } from "react-icons/fi";
+import JSZip from "jszip";
+
+interface Finding {
+  rule_id: string;
+  rule_name: string;
+  category: string;
+  severity: string;
+  status: string;
+  message: string;
+  recommendation?: string;
+  evidence?: string | Record<string, unknown>;
+  duration_ms?: number;
+}
 
 export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const folderRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
@@ -139,16 +153,52 @@ export default function Home() {
     fileRef.current?.click();
   };
 
+  const handleChooseFolder = () => {
+    folderRef.current?.click();
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     setSelectedFile(file);
     if (!file && event.target.files?.length === 0) {
-      setStatus("No file selected. If selecting a folder (.app, .xcodeproj), please ZIP it first.");
+      setStatus("No file selected. If selecting a folder (.app, .xcodeproj), please ZIP it first or use 'Choose folder'.");
     } else {
       setStatus(file ? `Selected ${file.name}` : "No file selected");
     }
     setResult(null);
     setRawResult(null);
+  };
+
+  const handleFolderChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const folderName = files[0].webkitRelativePath.split('/')[0] || "project";
+    setStatus(`Bundling ${folderName}...`);
+
+    try {
+      const zip = new JSZip();
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        zip.file(file.webkitRelativePath, file);
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const zippedFile = new File([content], `${folderName}.zip`, {
+        type: "application/zip",
+      });
+
+      setSelectedFile(zippedFile);
+      setStatus(`Ready: ${folderName}.zip (${(zippedFile.size / (1024 * 1024)).toFixed(2)} MB)`);
+      setResult(null);
+      setRawResult(null);
+    } catch (error) {
+      console.error("Zipping failed", error);
+      setStatus("Failed to bundle folder");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
 
@@ -200,7 +250,7 @@ export default function Home() {
         setResult(null);
         setRawResult(rawText || null);
       }
-    } catch (error) {
+    } catch {
       setStatus("Failed to reach backend. Is it running on :7070?");
       setResult(null);
       setRawResult(null);
@@ -241,7 +291,7 @@ export default function Home() {
       link.click();
       URL.revokeObjectURL(url);
       setStatus("Agent bundle downloaded");
-    } catch (error) {
+    } catch {
       setStatus("Failed to download agent bundle");
     } finally {
       setIsDownloading(false);
@@ -263,7 +313,7 @@ export default function Home() {
         }
       | undefined;
     const results = report?.results ?? [];
-    const failures = results.filter((item) => {
+    const failures = (results as unknown as Finding[]).filter((item) => {
       const status = item.status as string | undefined;
       return status === "Fail" || status === "Error";
     });
@@ -286,7 +336,7 @@ export default function Home() {
       return acc;
     }, {});
 
-    const findingsByCategory = failures.reduce<Record<string, any[]>>((acc, item) => {
+    const findingsByCategory = failures.reduce<Record<string, Finding[]>>((acc, item) => {
       const category = String(item.category ?? "Other");
       if (!acc[category]) acc[category] = [];
       acc[category].push(item);
@@ -419,9 +469,26 @@ export default function Home() {
                 onChange={handleFileChange}
                 hidden
               />
-              <button className="secondary-button" type="button" onClick={handleChooseFile}>
-                Choose file
-              </button>
+              <input
+                ref={folderRef}
+                className="file-input"
+                type="file"
+                {...({
+                  webkitdirectory: "",
+                  directory: "",
+                } as unknown as Record<string, string>)}
+                onChange={handleFolderChange}
+                hidden
+              />
+              <div className="button-row" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                <button className="secondary-button" type="button" onClick={handleChooseFile}>
+                  Choose file
+                </button>
+                <button className="secondary-button" type="button" onClick={handleChooseFolder}>
+                  <FiFolder style={{ marginRight: '6px' }} />
+                  Choose folder
+                </button>
+              </div>
             </div>
             <div className="upload-actions">
               <button
@@ -534,11 +601,11 @@ export default function Home() {
                   </div>
                   <div className="tree-view">
                     {Object.entries(summary.findingsByCategory).sort().map(([category, rawItems]) => {
-                      const items = severityFilter ? (rawItems as any[]).filter(i => i.severity === severityFilter) : (rawItems as any[]);
+                      const items = severityFilter ? (rawItems as Finding[]).filter(i => i.severity === severityFilter) : (rawItems as Finding[]);
                       if (items.length === 0) return null;
 
                       const isExpanded = expandedCategories.has(category);
-                      const catErrors = items.filter((i: any) => i.severity === "Error").length;
+                      const catErrors = items.filter((i: Finding) => i.severity === "Error").length;
                       return (
                         <div key={category} className={`tree-node ${isExpanded ? "is-expanded" : ""}`}>
                           <div className="tree-header" onClick={() => toggleCategory(category)}>
