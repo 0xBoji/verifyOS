@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FaGithub, FaChevronRight } from "react-icons/fa";
 import { SiRust } from "react-icons/si";
 import { VscVscode } from "react-icons/vsc";
-import { FiAlertCircle, FiAlertTriangle, FiFolder, FiTarget, FiActivity, FiZoomIn, FiZoomOut, FiMaximize, FiX } from "react-icons/fi";
+import { FiAlertCircle, FiAlertTriangle, FiFolder, FiTarget, FiZoomIn, FiZoomOut, FiMaximize, FiX } from "react-icons/fi";
 import JSZip from "jszip";
 
 interface Finding {
@@ -20,6 +20,7 @@ interface Finding {
   target: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ASTViewer = ({ data, astFocus }: { data: any; astFocus: string | null }) => {
   const targets = (data?.report?.scanned_targets as string[]) ?? [];
   const findings = (data?.report?.results as Finding[]) ?? [];
@@ -189,6 +190,7 @@ const ASTViewer = ({ data, astFocus }: { data: any; astFocus: string | null }) =
   );
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ASTModal = ({ isOpen, onClose, data, astFocus }: { isOpen: boolean; onClose: () => void; data: any; astFocus: string | null }) => {
   if (!isOpen) return null;
 
@@ -626,8 +628,6 @@ export default function Home() {
     setExpandedCategories(new Set());
   };
 
-  const [selectedNode, setSelectedNode] = useState<Finding | null>(null);
-
 
 
   return (
@@ -638,6 +638,7 @@ export default function Home() {
       <header className="nav">
         <div className="logo">
           <span className="logo-mark" aria-hidden="true">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo/verifyOS_web_128x.png" alt="" />
           </span>
           <div>
