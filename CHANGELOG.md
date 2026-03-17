@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0](https://github.com/0xBoji/verifyOS/compare/v0.9.0...v0.10.0) - 2026-03-17
+
+### Added
+
+- *(core)* implement recursive .app bundle discovery in zip extractor
+- *(frontend)* add interactive severity filtering and bulk tree controls
+- *(frontend)* refine Findings Explorer UI and update example report
+- *(frontend)* add hierarchical Findings Explorer tree view
+- *(rules)* implement Xcode 26 build mandate and enhance privacy sdk checks
+
+### Fixed
+
+- *(rules)* prevent test failures on empty manifests and downgrade Xcode mandate
+- *(frontend)* ensure Findings Explorer and summaries only include failures
+- *(backend)* fix ownership errors and restore optimized MUSL build
+
+### Other
+
+- add agent workflow for CI/CD pipelines
+- add agent workflows for frontend, backend, and extension
+- update README badges and resources with official links
+
 ## [0.9.0](https://github.com/0xBoji/verifyOS/compare/v0.8.2...v0.9.0) - 2026-03-16
 
 ### Fixed
