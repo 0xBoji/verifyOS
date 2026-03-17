@@ -3,18 +3,18 @@
 :root {
   color-scheme: light;
   --ios-purple: #8c52ff;
-  --ios-teal: #5ce1e6;
-  --ios-gold: #f4ca44;
-  --ios-green: #59b379;
-  --ios-ink: #0b0b16;
-  --ios-ink-soft: #151528;
+  --ios-teal: #00d2ff;
+  --ios-gold: #ffbd2e;
+  --ios-red: #ff3b30;
+  --ios-green: #34c759;
+  --ios-ink: #000000;
+  --ios-ink-soft: #48484a;
   --ios-surface: #ffffff;
-  --ios-surface-muted: #f6f7fb;
-  --ios-outline: rgba(15, 24, 46, 0.12);
-  --ios-shadow: 0 20px 60px rgba(24, 28, 52, 0.12);
-  --ios-glow: 0 0 80px rgba(92, 225, 230, 0.35);
-  --ios-font: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+  --ios-surface-muted: #f2f2f7;
+  --ios-outline: rgba(0, 0, 0, 0.08);
+  --ios-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+  --ios-glass: rgba(255, 255, 255, 0.72);
+  --ios-font: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 * {
@@ -71,15 +71,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 1100px;
+  max-width: 1000px;
   width: 100%;
-  margin: 0 auto 40px;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.7);
+  margin: 0 auto 32px;
+  padding: 12px 24px;
+  background: var(--ios-glass);
   border: 1px solid var(--ios-outline);
-  border-radius: 18px;
+  border-radius: 20px;
   box-shadow: var(--ios-shadow);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px) saturate(180%);
 }
 
 .logo {
@@ -139,26 +139,28 @@ body {
 }
 
 .primary-button {
-  color: #101019;
-  background: linear-gradient(90deg, var(--ios-gold), var(--ios-green));
-  box-shadow: 0 16px 30px rgba(89, 179, 123, 0.28);
+  color: #fff;
+  background: linear-gradient(135deg, #007aff, #00c6ff);
+  box-shadow: 0 8px 16px rgba(0, 122, 255, 0.2);
+}
+
+.primary-button:active {
+  transform: scale(0.98);
 }
 
 .secondary-button {
-  background: var(--ios-surface);
+  background: rgba(0, 0, 0, 0.04);
   color: var(--ios-ink);
-  border: 1px solid var(--ios-outline);
+  border: 1px solid transparent;
+}
+
+.secondary-button:hover {
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .ghost-button {
   background: transparent;
-  color: var(--ios-ink);
-}
-
-.primary-button:hover,
-.secondary-button:hover,
-.ghost-button:hover {
-  transform: translateY(-1px);
+  color: #007aff;
 }
 
 .shell {
@@ -285,31 +287,45 @@ body {
 }
 
 .dropzone {
-  border: 2px dashed rgba(140, 82, 255, 0.25);
-  border-radius: 20px;
-  padding: 24px;
+  border: 2px dashed rgba(0, 122, 255, 0.2);
+  border-radius: 24px;
+  padding: 40px 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
   align-items: center;
   text-align: center;
-  background: rgba(140, 82, 255, 0.06);
+  background: linear-gradient(180deg, rgba(0, 122, 255, 0.02), rgba(0, 122, 255, 0.05));
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.dropzone:hover {
+  border-color: rgba(0, 122, 255, 0.4);
+  background: rgba(0, 122, 255, 0.08);
 }
 
 .dropzone-content {
   display: grid;
-  gap: 8px;
+  gap: 4px;
   justify-items: center;
+}
+
+.dropzone strong {
+  font-size: 16px;
+  color: var(--ios-ink);
 }
 
 .dropzone span {
   display: block;
-  font-size: 12px;
-  color: rgba(11, 11, 22, 0.6);
+  font-size: 13px;
+  color: var(--ios-ink-soft);
+  opacity: 0.7;
 }
 
 .drop-icon {
-  font-size: 28px;
+  font-size: 32px;
+  margin-bottom: 8px;
+  color: #007aff;
 }
 
 .file-input {
@@ -790,4 +806,160 @@ body {
   .hero-card {
     justify-self: stretch;
   }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* AST Visualization Styles */
+.ast-container {
+  padding: 40px 20px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 24px;
+  overflow-x: auto;
+  display: flex;
+  justify-content: center;
+  min-height: 400px;
+  position: relative;
+}
+
+.ast-tree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 60px;
+  position: relative;
+}
+
+.ast-level {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+  position: relative;
+}
+
+.ast-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  transition: transform 0.2s ease;
+  z-index: 2;
+}
+
+.ast-node:hover {
+  transform: scale(1.05);
+}
+
+.ast-node-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--ios-surface);
+  border: 1px solid var(--ios-outline);
+  box-shadow: var(--ios-shadow);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  color: #007aff;
+  transition: all 0.2s ease;
+}
+
+.ast-node--error .ast-node-icon {
+  border-color: rgba(255, 59, 48, 0.4);
+  background: rgba(255, 59, 48, 0.05);
+  color: var(--ios-red);
+  box-shadow: 0 0 20px rgba(255, 59, 48, 0.2);
+  animation: nodePulse 2s infinite;
+}
+
+.ast-node--warning .ast-node-icon {
+  border-color: rgba(255, 189, 46, 0.4);
+  background: rgba(255, 189, 46, 0.05);
+  color: var(--ios-gold);
+}
+
+.ast-node-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ios-ink);
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--ios-glass);
+  padding: 2px 8px;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+}
+
+.ast-node-sublabel {
+  font-size: 9px;
+  color: var(--ios-ink-soft);
+  opacity: 0.6;
+}
+
+.ast-connector {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  width: 2px;
+  background: var(--ios-outline);
+  height: 60px;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+@keyframes nodePulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4); }
+  70% { box-shadow: 0 0 0 15px rgba(255, 59, 48, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+}
+
+.mode-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 4px;
+  border-radius: 12px;
+  gap: 4px;
+}
+
+.mode-toggle button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--ios-ink-soft);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-toggle button.is-active {
+  background: var(--ios-surface);
+  color: #007aff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
