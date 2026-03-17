@@ -20,6 +20,22 @@ This workflow covers development and deployment for the verifyOS-frontend locate
 
 4. Access the app at `http://localhost:3000`.
 
+## Diagnostic Workflows
+
+### Verifying AST Visualization
+1. Open the app and load the **Example Report**.
+2. Locate a finding in the list and click **Draw** or **View in AST** (if available).
+3. Ensure the `ASTModal` opens and centers the selected node.
+4. Verify Pan & Zoom:
+   - **Pan**: Drag the background.
+   - **Zoom**: Cmd/Ctrl + Scroll or use the zoom controls.
+
+### Testing Folder Discovery
+1. Click **Choose folder** in the Quick Scan panel.
+2. Select a directory containing Apple targets (e.g., `examples/AppStoreMock`).
+3. Verify that the "Auto-discovered scannable items" section appears with the correct targets.
+4. Verify that clicking a target triggers a client-side bundle and sets it for scanning.
+
 ## Deployment
 
 The frontend is built as a standard Next.js application and is currently deployed to Vercel.
