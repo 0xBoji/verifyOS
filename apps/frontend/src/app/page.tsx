@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FaGithub, FaChevronRight } from "react-icons/fa";
+import { FaGithub, FaChevronRight, FaChevronDown } from "react-icons/fa";
 import { SiRust } from "react-icons/si";
 import { VscVscode } from "react-icons/vsc";
-import { FiAlertCircle, FiAlertTriangle, FiFolder, FiTarget, FiActivity, FiZoomIn, FiZoomOut, FiMaximize, FiX } from "react-icons/fi";
+import { FiAlertCircle, FiAlertTriangle, FiFolder, FiTarget, FiActivity, FiZoomIn, FiZoomOut, FiMaximize, FiX, FiShare2, FiPackage } from "react-icons/fi";
 import JSZip from "jszip";
 
 interface Finding {
@@ -205,6 +205,57 @@ const ASTModal = ({ isOpen, onClose, data, astFocus }: { isOpen: boolean; onClos
   );
 };
 
+const AlertModal = ({ isOpen, title, message, actions }: { 
+  isOpen: boolean; 
+  title: string; 
+  message: string; 
+  actions: { label: string; onClick: () => void; bold?: boolean; danger?: boolean; }[] 
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="alert-overlay">
+      <div className="alert-content">
+        <div className="alert-body">
+          <div className="alert-title">{title}</div>
+          <div className="alert-message">{message}</div>
+        </div>
+        <div className={`alert-actions ${actions.length > 2 ? 'alert-actions--vertical' : ''}`}>
+          {actions.map((action, i) => (
+            <button 
+              key={i} 
+              className={`alert-action ${action.bold ? 'alert-action--bold' : ''} ${action.danger ? 'alert-action--danger' : ''}`}
+              onClick={action.onClick}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Toast = ({ message, onClear }: { message: string | null; onClear: () => void }) => {
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(onClear, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message, onClear]);
+
+  if (!message) return null;
+
+  return (
+    <div className="toast-container">
+      <div className="toast">
+        <FiActivity />
+        <span>{message}</span>
+      </div>
+    </div>
+  );
+};
+
 interface DiscoveryTarget {
   path: string;
   name: string;
@@ -215,7 +266,6 @@ export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -223,9 +273,18 @@ export default function Home() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [severityFilter, setSeverityFilter] = useState<string | null>(null);
-  const [discoveredTargets, setDiscoveredTargets] = useState<DiscoveryTarget[]>([]);
+  const [bundleType, setBundleType] = useState<"ipa" | "project">("ipa");
   const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoveredTargets, setDiscoveredTargets] = useState<DiscoveryTarget[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  // Custom Alert/Toast state
+  const [alertConfig, setAlertConfig] = useState<{ 
+    title: string; 
+    message: string; 
+    actions: { label: string; onClick: () => void; bold?: boolean; danger?: boolean; }[] 
+  } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "ast">("list");
   const [astFocus, setAstFocus] = useState<string | null>(null);
   const [isASTModalOpen, setIsASTModalOpen] = useState(false);
@@ -349,9 +408,9 @@ export default function Home() {
     const file = event.target.files?.[0] ?? null;
     setSelectedFile(file);
     if (!file && event.target.files?.length === 0) {
-      setStatus("No file selected. If selecting a folder (.app, .xcodeproj), please ZIP it first or use 'Choose folder'.");
+      setToastMessage("No file selected");
     } else {
-      setStatus(file ? `Selected ${file.name}` : "No file selected");
+      setToastMessage(file ? `Selected ${file.name}` : "No file selected");
     }
     setResult(null);
     setRawResult(null);
@@ -362,7 +421,7 @@ export default function Home() {
     if (!files || files.length === 0) return;
 
     setIsDiscovering(true);
-    setStatus("Analyzing folder...");
+    setToastMessage("Analyzing folder...");
     const allFiles = Array.from(files);
     setPendingFiles(allFiles);
 
@@ -394,7 +453,24 @@ export default function Home() {
 
     if (targets.length > 1) {
       setDiscoveredTargets(targets);
-      setStatus(`Found ${targets.length} potential targets. Please select one.`);
+      setAlertConfig({
+        title: "Multiple targets found",
+        message: "We found multiple scannable items in your folder. Please select one to proceed.",
+        actions: targets.map(t => ({
+          label: `${t.name} (${t.type})`,
+          onClick: () => {
+            setAlertConfig(null);
+            void bundleAndSelect(allFiles, t);
+          }
+        })).concat([{
+          label: "Scan entire folder",
+          onClick: () => {
+            setAlertConfig(null);
+            void bundleAndSelect(allFiles, null);
+          }
+        }])
+      });
+      setToastMessage(`Found ${targets.length} potential targets.`);
       setIsDiscovering(false);
       return;
     }
@@ -411,7 +487,7 @@ export default function Home() {
 
     const rootFolderName = allFiles[0].webkitRelativePath.split('/')[0];
     const targetName = target ? target.name : rootFolderName;
-    setStatus(`Bundling ${targetName}...`);
+    setToastMessage(`Bundling ${targetName}...`);
 
     try {
       const zip = new JSZip();
@@ -444,11 +520,11 @@ export default function Home() {
 
       setSelectedFile(zippedFile);
       setPendingFiles([]);
-      setStatus(`Ready: ${targetName}.zip (${(zippedFile.size / (1024 * 1024)).toFixed(2)} MB)`);
+      setToastMessage(`Ready: ${targetName}.zip`);
       setResult(null);
       setRawResult(null);
     } catch {
-      setStatus("Failed to bundle folder");
+      setToastMessage("Failed to bundle folder");
     } finally {
       setIsUploading(false);
     }
@@ -461,7 +537,7 @@ export default function Home() {
     }
 
     setIsUploading(true);
-    setStatus("Scanning...");
+    setToastMessage("Scanning...");
     setResult(null);
 
     try {
@@ -489,13 +565,18 @@ export default function Home() {
           typeof payload === "object" && payload !== null && "error" in payload
             ? String((payload as { error?: string }).error)
             : `Scan failed (${response.status})`;
-        setStatus(message);
+        setAlertConfig({
+          title: "Scan error",
+          message: message,
+          actions: [{ label: "OK", onClick: () => setAlertConfig(null), bold: true }]
+        });
+        setToastMessage("Scan failed");
         setResult(null);
         setRawResult(rawText || null);
         return;
       }
 
-      setStatus("Scan complete");
+      setToastMessage("Scan complete");
       if (payload && typeof payload === "object") {
         setResult(payload as Record<string, unknown>);
         setRawResult(JSON.stringify(payload, null, 2));
@@ -504,7 +585,12 @@ export default function Home() {
         setRawResult(rawText || null);
       }
     } catch {
-      setStatus("Failed to reach backend. Is it running on :7070?");
+      setAlertConfig({
+        title: "Backend Unreachable",
+        message: "Failed to reach backend. Please ensure the server is running on port 7070.",
+        actions: [{ label: "Close", onClick: () => setAlertConfig(null) }]
+      });
+      setToastMessage("Connection failed");
       setResult(null);
       setRawResult(null);
     } finally {
@@ -518,7 +604,7 @@ export default function Home() {
     }
 
     setIsDownloading(true);
-    setStatus("Preparing agent bundle...");
+    setToastMessage("Preparing agent bundle...");
 
     try {
       const form = new FormData();
@@ -552,7 +638,7 @@ export default function Home() {
   };
 
   const handleExampleReport = () => {
-    setStatus("Loaded example report");
+    setToastMessage("Loaded example report");
     setSelectedFile(null);
     setResult(examplePayload as Record<string, unknown>);
     setRawResult(JSON.stringify(examplePayload, null, 2));
@@ -676,7 +762,6 @@ export default function Home() {
           </div>
         </section>
 
-
         <section className="steps">
           <div className="step">
             <div className="step-number">1</div>
@@ -748,6 +833,28 @@ export default function Home() {
               </div>
             </div>
 
+            <div className="upload-actions">
+              <button
+                className="primary-button"
+                type="button"
+                onClick={handleUpload}
+                disabled={!selectedFile || isUploading || isDiscovering}
+                style={{ 
+                  height: '52px', 
+                  fontSize: '16px', 
+                  borderRadius: '16px',
+                  opacity: (!selectedFile || isUploading || isDiscovering) ? 0.5 : 1
+                }}
+              >
+                {isUploading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="spinner" />
+                    <span>Analyzing...</span>
+                  </div>
+                ) : isDiscovering ? "Analyzing folder..." : "Run scan"}
+              </button>
+            </div>
+
             {discoveredTargets.length > 0 && (
               <div className="status-pill" style={{ 
                 marginTop: '1.5rem', 
@@ -758,7 +865,7 @@ export default function Home() {
                 animation: 'slideDown 0.3s ease-out'
               }}>
                 <div style={{ marginBottom: '1rem', fontWeight: 600, fontSize: '1rem', color: 'var(--ios-ink)' }}>
-                  Auto-discovered scannable items:
+                  Auto-discovered targets:
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
                   {discoveredTargets.map((t, idx) => (
@@ -783,42 +890,10 @@ export default function Home() {
                       <FaChevronRight style={{ opacity: 0.3, fontSize: '12px' }} />
                     </button>
                   ))}
-                  <button
-                    className="ghost-button"
-                    style={{ justifyContent: 'center', marginTop: '8px', fontSize: '13px', opacity: 0.7 }}
-                    onClick={() => bundleAndSelect(pendingFiles, null)}
-                  >
-                    Scan entire folder instead
-                  </button>
                 </div>
               </div>
             )}
 
-            <div className="upload-actions">
-              <button
-                className="primary-button"
-                type="button"
-                onClick={handleUpload}
-                disabled={!selectedFile || isUploading || isDiscovering}
-                style={{ 
-                  height: '52px', 
-                  fontSize: '16px', 
-                  borderRadius: '16px',
-                  opacity: (!selectedFile || isUploading || isDiscovering) ? 0.5 : 1
-                }}
-              >
-                {isUploading ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div className="spinner" />
-                    <span>Analyzing...</span>
-                  </div>
-                ) : isDiscovering ? "Analyzing folder..." : "Run scan"}
-              </button>
-              <div className="upload-status">
-                {selectedFile ? selectedFile.name : "No file selected"}
-              </div>
-            </div>
-            {status ? <div className="status-pill">{status}</div> : null}
             {result ? (
               <div className="report-stack">
                 <div className="report-summary">
@@ -864,154 +939,103 @@ export default function Home() {
 
                 <div className="result-card">
                   <div className="result-header">Findings by category</div>
-                  <div className="bar-list">
-                    {Object.entries(summary.byCategory).map(([name, count]) => (
-                      <div key={name} className="bar-row">
-                        <span>{name}</span>
-                        <div className="bar">
-                          <div
-                            className="bar-fill"
-                            style={{ width: `${Math.min(count * 12, 100)}%` }}
-                          />
-                        </div>
-                        <strong>{count}</strong>
+                  <div className="category-stats">
+                    {Object.entries(summary.byCategory).map(([cat, count]) => (
+                      <div key={cat} className="category-stat-pill" onClick={() => toggleCategory(cat)}>
+                        <span className="stat-label">{cat}</span>
+                        <span className="stat-count">{count}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 <div className="result-card">
-                  <div className="result-header">
-                    <span>Findings by severity</span>
-                    {severityFilter && (
-                      <button className="ghost-button" style={{ fontSize: "10px", padding: "2px 8px" }} onClick={() => setSeverityFilter(null)}>
-                        Clear filter
-                      </button>
-                    )}
-                  </div>
-                  <div className="pill-row">
-                    {Object.entries(summary.bySeverity).map(([name, count]) => (
-                      <button
-                        key={name}
-                        className={`pill-chip pill-chip--${name.toLowerCase()} ${severityFilter === name ? "is-active" : ""}`}
-                        onClick={() => setSeverityFilter(severityFilter === name ? null : name)}
-                        style={{ border: severityFilter === name ? "1px solid currentColor" : "1px solid transparent", cursor: "pointer" }}
-                      >
-                        {name === "Error" ? <FiAlertCircle /> : <FiAlertTriangle />}
-                        <span>{name}</span>
-                        <strong>{count}</strong>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="result-card">
-                  <div className="result-header">
-                    <span>Findings Explorer</span>
-                    <div className="pill-row" style={{ alignItems: 'center' }}>
-                      <div className="mode-toggle">
-                        <button className="is-active" onClick={() => setIsASTModalOpen(true)}>Visualize AST</button>
-                      </div>
-                      <div style={{ width: '1px', height: '16px', background: 'var(--ios-outline)', margin: '0 4px' }} />
-                      <button className="ghost-button" style={{ fontSize: "10px", padding: "2px 8px" }} onClick={() => expandAll(Object.keys(summary.findingsByCategory))}>
-                        Expand all
-                      </button>
-                      <button className="ghost-button" style={{ fontSize: "10px", padding: "2px 8px" }} onClick={collapseAll}>
-                        Collapse all
-                      </button>
+                  <div className="result-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Detailed findings</span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button className="pill-chip" onClick={() => expandAll(Object.keys(summary.findingsByCategory))}>Expand all</button>
+                      <button className="pill-chip" onClick={collapseAll}>Collapse all</button>
                     </div>
                   </div>
-                  <div className="tree-view">
-                    {Object.entries(summary.findingsByCategory).sort().map(([category, rawItems]) => {
-                      const items = severityFilter ? (rawItems as Finding[]).filter(i => i.severity === severityFilter) : (rawItems as Finding[]);
-                      if (items.length === 0) return null;
-
-                      const isExpanded = expandedCategories.has(category);
-                      const catErrors = items.filter((i: Finding) => i.severity === "Error").length;
-                      return (
-                        <div key={category} className={`tree-node ${isExpanded ? "is-expanded" : ""}`}>
-                          <div className="tree-header" onClick={() => toggleCategory(category)}>
-                            <div className="tree-header-left">
-                              <FaChevronRight className="tree-arrow" />
-                              <span>{category}</span>
-                            </div>
-                            <div className="pill-row">
-                              {catErrors > 0 && (
-                                <span className="tree-badge" style={{ background: "rgba(217, 72, 72, 0.1)", color: "#b92c2c" }}>
-                                  {catErrors} Errors
-                                </span>
-                              )}
-                              <span className="tree-badge">
-                                {items.length} {severityFilter ? severityFilter.toLowerCase() : "item"}s
-                              </span>
-                            </div>
-                          </div>
-                          {isExpanded && (
-                            <div className="tree-content">
-                              {items.map((item, idx) => (
-                                  <div key={idx} className="tree-finding">
-                                    <div className="tree-finding-title">
-                                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <strong>{item.rule_name}</strong>
-                                        <button 
-                                          className="ghost-button" 
-                                          style={{ fontSize: '9px', padding: '2px 6px', height: 'auto', background: 'rgba(0,122,255,0.1)', color: '#007aff' }}
-                                          onClick={() => {
-                                            setAstFocus(item.rule_id);
-                                            setIsASTModalOpen(true);
-                                          }}
-                                        >
-                                          Draw
-                                        </button>
-                                      </div>
-                                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                        <span className="pill-chip" style={{ fontSize: '9px', padding: '1px 6px', background: 'rgba(255,255,255,0.05)' }}>{item.target}</span>
-                                        <span className={`pill-chip pill-chip--${String(item.severity).toLowerCase()}`} style={{ padding: "2px 8px", fontSize: "10px" }}>
-                                          {item.severity}
-                                        </span>
-                                      </div>
+                  <div className="finding-groups">
+                    {Object.entries(summary.findingsByCategory).map(([category, items]) => (
+                      <div key={category} id={`cat-${category}`} className="finding-group">
+                        <button className="category-header" onClick={() => toggleCategory(category)}>
+                          {expandedCategories.has(category) ? <FaChevronDown /> : <FaChevronRight />}
+                          <span>{category}</span>
+                          <span className="pill-chip">{items.length}</span>
+                        </button>
+                        {expandedCategories.has(category) && (
+                          <div className="category-content">
+                            {items.map((item, idx) => (
+                              <div key={idx} className={`finding-item finding-item--${item.severity?.toLowerCase()}`}>
+                                <div className="finding-item-header">
+                                  <div className="finding-item-main">
+                                    <div className="finding-severity-line">
+                                      <span className={`severity-pill severity-pill--${item.severity?.toLowerCase()}`}>
+                                        {item.severity}
+                                      </span>
+                                      <strong>{item.rule_name}</strong>
                                     </div>
-                                    <div className="tree-finding-meta">
-                                      <span>Rule: {item.rule_id}</span>
-                                      {typeof item.duration_ms === "number" && (
-                                        <span>{item.duration_ms}ms</span>
-                                      )}
-                                    </div>
-                                    <div className="tree-finding-desc">
-                                      {item.message}
-                                    </div>
-                                    {item.evidence && (
-                                      <pre className="tree-finding-evidence">
-                                        {typeof item.evidence === "string" 
-                                          ? item.evidence 
-                                          : JSON.stringify(item.evidence, null, 2)}
-                                      </pre>
-                                    )}
-                                    {item.recommendation && (
-                                      <div className="tree-finding-rec">
-                                        {item.recommendation}
-                                      </div>
-                                    )}
+                                    <p className="finding-message">{item.message}</p>
+                                  </div>
+                                  <div className="finding-actions">
+                                    <button
+                                      className="ghost-button"
+                                      onClick={() => {
+                                        setSelectedNode(item);
+                                        setAstFocus(item.rule_id || null);
+                                        setIsASTModalOpen(true);
+                                      }}
+                                    >
+                                      <FiShare2 />
+                                      View in AST
+                                    </button>
+                                  </div>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                                {item.evidence ? (
+                                  <div className="finding-evidence">
+                                    <label>Evidence</label>
+                                    <pre>
+                                      {typeof item.evidence === "string" 
+                                        ? item.evidence 
+                                        : JSON.stringify(item.evidence, null, 2)}
+                                    </pre>
+                                  </div>
+                                ) : null}
+                                <div className="finding-recommendation">
+                                  <label>Recommendation</label>
+                                  <p>{item.recommendation}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 <div className="result-card">
-                  <div className="result-header">Report actions</div>
-                  <div className="report-actions">
+                  <div className="result-header">Export & Share</div>
+                  <div className="button-row">
                     <button
                       className="secondary-button"
                       type="button"
                       onClick={handleDownloadBundle}
-                      disabled={!selectedFile || isDownloading}
+                      disabled={isDownloading || !selectedFile}
                     >
-                      {isDownloading ? "Preparing bundle..." : "Download agent bundle"}
+                      {isDownloading ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div className="spinner" />
+                          <span>Preparing...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <FiPackage style={{ marginRight: '8px' }} />
+                          Download Agent Pack
+                        </>
+                      )}
                     </button>
                     <button
                       className="secondary-button"
@@ -1036,7 +1060,7 @@ export default function Home() {
                         if (!rawResult) return;
                         void navigator.clipboard?.writeText(rawResult);
                         setCopied(true);
-                        setStatus("Copied JSON to clipboard");
+                        setToastMessage("Copied JSON to clipboard");
                         window.setTimeout(() => setCopied(false), 1500);
                       }}
                     >
@@ -1103,11 +1127,24 @@ export default function Home() {
           </nav>
         </footer>
       </main>
+
       <ASTModal 
         isOpen={isASTModalOpen} 
         onClose={() => setIsASTModalOpen(false)} 
-        data={result} 
-        astFocus={astFocus} 
+        data={result}
+        astFocus={astFocus}
+      />
+
+      <AlertModal 
+        isOpen={!!alertConfig}
+        title={alertConfig?.title || ""}
+        message={alertConfig?.message || ""}
+        actions={alertConfig?.actions || []}
+      />
+
+      <Toast 
+        message={toastMessage} 
+        onClear={() => setToastMessage(null)} 
       />
     </div>
   );
