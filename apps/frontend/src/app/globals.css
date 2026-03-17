@@ -1133,15 +1133,56 @@ body {
   opacity: 0.6;
 }
 
-.ast-connector {
-  position: absolute;
-  top: 40px;
-  left: 50%;
+.ast-branch {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.ast-trunk {
   width: 2px;
-  background: linear-gradient(180deg, #007aff80, var(--ios-outline));
-  height: 80px;
-  transform: translateX(-50%);
+  height: 24px;
+  background: var(--ios-outline);
+  position: relative;
   z-index: 1;
+}
+
+.ast-bar {
+  height: 2px;
+  background: var(--ios-outline);
+  position: relative;
+  z-index: 1;
+  border-radius: 2px;
+}
+
+.ast-leg-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.ast-leg {
+  width: 2px;
+  height: 24px;
+  background: var(--ios-outline);
+  position: relative;
+  z-index: 1;
+}
+
+.ast-node-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0; /* Let branches handle spacing */
+}
+
+.ast-node--root .ast-node-icon {
+  border-color: #007aff;
+  background: rgba(0, 122, 255, 0.05);
+  color: #007aff;
 }
 
 .ast-node.is-focused .ast-node-icon {

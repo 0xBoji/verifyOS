@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FaGithub, FaChevronRight, FaChevronDown } from "react-icons/fa";
 import { SiRust } from "react-icons/si";
 import { VscVscode } from "react-icons/vsc";
@@ -19,6 +19,30 @@ interface Finding {
   duration_ms?: number;
   target: string;
 }
+
+const ASTBranch = ({ children, count }: { children: React.ReactNode; count: number }) => {
+  if (count <= 0) return <div className="ast-level">{children}</div>;
+  
+  return (
+    <div className="ast-branch">
+      <div className="ast-trunk" />
+      {count > 1 && (
+        <div className="ast-bar" style={{ 
+          width: `calc(100% - ${100 / count}%)`,
+          margin: '0 auto'
+        }} />
+      )}
+      <div className="ast-level">
+        {React.Children.map(children, (child) => (
+          <div className="ast-leg-wrapper">
+             <div className="ast-leg" />
+             {child}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const ASTViewer = ({ data, astFocus }: { data: any; astFocus: string | null }) => {
   const targets = (data?.report?.scanned_targets as string[]) ?? [];
@@ -53,40 +77,39 @@ const ASTViewer = ({ data, astFocus }: { data: any; astFocus: string | null }) =
     }
   }, [astFocus, data]);
 
-  const drawTargetNode = (target: string) => {
-    const targetFindings = findings.filter(f => f.target === target && (f.status === 'Fail' || f.status === 'Error'));
-    if (targetFindings.length === 0 && targets.length > 1) return null;
+  const renderFindingNode = (f: Finding, idx: number) => (
+    <div 
+      key={`${f.rule_id}-${idx}`} 
+      className={`ast-node ${f.severity === 'Error' ? 'ast-node--error' : 'ast-node--warning'} ${astFocus === f.rule_id || selectedNode?.rule_id === f.rule_id ? 'is-focused' : ''}`} 
+      id={`ast-node-${f.rule_id}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        setSelectedNode(f);
+      }}
+      style={{ cursor: 'pointer' }}
+    >
+      <div className="ast-node-icon"><FiAlertCircle /></div>
+      <span className="ast-node-label">{f.rule_name}</span>
+      <span className="ast-node-sublabel">{f.rule_id}</span>
+    </div>
+  );
 
+  const renderTargetBranch = (target: string) => {
+    const targetFindings = findings.filter(f => f.target === target && (f.status === 'Fail' || f.status === 'Error'));
     const hasError = targetFindings.some(f => f.severity === 'Error');
     const hasWarning = targetFindings.some(f => f.severity === 'Warning');
 
     return (
-      <div key={target} className="ast-tree" style={{ flex: 1, minWidth: 'fit-content' }}>
+      <div key={target} className="ast-node-group">
         <div className={`ast-node ${hasError ? 'ast-node--error' : hasWarning ? 'ast-node--warning' : ''}`}>
           <div className="ast-node-icon"><FiTarget /></div>
           <span className="ast-node-label">{target}</span>
           <span className="ast-node-sublabel">Scan Target</span>
-          {targetFindings.length > 0 && <div className="ast-connector" />}
         </div>
         
-        <div className="ast-level" style={{ marginTop: '20px' }}>
-          {targetFindings.map((f, idx) => (
-            <div 
-              key={idx} 
-              className={`ast-node ${f.severity === 'Error' ? 'ast-node--error' : 'ast-node--warning'} ${astFocus === f.rule_id || selectedNode?.rule_id === f.rule_id ? 'is-focused' : ''}`} 
-              id={`ast-node-${f.rule_id}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedNode(f);
-              }}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="ast-node-icon"><FiAlertCircle /></div>
-              <span className="ast-node-label">{f.rule_name}</span>
-              <span className="ast-node-sublabel">{f.rule_id}</span>
-            </div>
-          ))}
-        </div>
+        <ASTBranch count={targetFindings.length}>
+          {targetFindings.map(renderFindingNode)}
+        </ASTBranch>
       </div>
     );
   };
@@ -109,11 +132,9 @@ const ASTViewer = ({ data, astFocus }: { data: any; astFocus: string | null }) =
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
-      // Use wheel delta for zooming
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
       setZoom(prev => Math.min(Math.max(prev * delta, 0.1), 3));
     } else {
-      // Regular scroll for panning (optional but often expected)
       setOffset(prev => ({
         x: prev.x - e.deltaX,
         y: prev.y - e.deltaY
@@ -141,8 +162,17 @@ const ASTViewer = ({ data, astFocus }: { data: any; astFocus: string | null }) =
             transition: isDragging ? 'none' : 'transform 0.1s ease-out'
           }}
         >
-          <div className="ast-level">
-            {targets.length > 0 ? targets.map(drawTargetNode) : drawTargetNode("Default Target")}
+          {/* Root Node */}
+          <div className="ast-branch">
+            <div className="ast-node ast-node--root">
+              <div className="ast-node-icon"><FiPackage /></div>
+              <span className="ast-node-label">Application Bundle</span>
+              <span className="ast-node-sublabel">Root Container</span>
+            </div>
+            
+            <ASTBranch count={targets.length}>
+              {targets.length > 0 ? targets.map(renderTargetBranch) : [renderTargetBranch("Default Target")]}
+            </ASTBranch>
           </div>
         </div>
       </div>
@@ -618,7 +648,7 @@ export default function Home() {
 
       if (!response.ok) {
         const text = await response.text();
-        setStatus(text || `Bundle failed (${response.status})`);
+        setToastMessage(text || `Bundle failed (${response.status})`);
         return;
       }
 
@@ -629,9 +659,9 @@ export default function Home() {
       link.download = "verifyos-handoff.zip";
       link.click();
       URL.revokeObjectURL(url);
-      setStatus("Agent bundle downloaded");
+      setToastMessage("Agent bundle downloaded");
     } catch {
-      setStatus("Failed to download agent bundle");
+      setToastMessage("Failed to download agent bundle");
     } finally {
       setIsDownloading(false);
     }
@@ -856,7 +886,7 @@ export default function Home() {
             </div>
 
             {discoveredTargets.length > 0 && (
-              <div className="status-pill" style={{ 
+              <div className="discovery-results" style={{ 
                 marginTop: '1.5rem', 
                 background: 'rgba(0, 122, 255, 0.03)', 
                 border: '1px solid rgba(0, 122, 255, 0.1)', 
