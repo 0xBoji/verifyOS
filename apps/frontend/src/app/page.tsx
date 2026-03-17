@@ -142,7 +142,11 @@ export default function Home() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     setSelectedFile(file);
-    setStatus(file ? `Selected ${file.name}` : "No file selected");
+    if (!file && event.target.files?.length === 0) {
+      setStatus("No file selected. If selecting a folder (.app, .xcodeproj), please ZIP it first.");
+    } else {
+      setStatus(file ? `Selected ${file.name}` : "No file selected");
+    }
     setResult(null);
     setRawResult(null);
   };
@@ -405,7 +409,7 @@ export default function Home() {
               <div className="dropzone-content">
                 <div className="drop-icon">⬆</div>
                 <strong>Drag &amp; drop your bundle</strong>
-                <span>.ipa, .app, .zip or Xcode files, up to 1GB</span>
+                <span>.ipa, .app, .zip or <strong>zipped</strong> Xcode projects</span>
               </div>
               <input
                 ref={fileRef}

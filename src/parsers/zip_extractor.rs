@@ -52,6 +52,31 @@ impl ExtractedIpa {
 
         Ok(None)
     }
+
+    pub fn get_project_path(&self) -> io::Result<Option<PathBuf>> {
+        let mut project = None;
+        let mut queue = vec![self.payload_dir.clone()];
+
+        while let Some(dir) = queue.pop() {
+            if let Ok(entries) = fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        let extension = path.extension().and_then(|e| e.to_str());
+                        if extension == Some("xcworkspace") {
+                            return Ok(Some(path));
+                        }
+                        if project.is_none() && extension == Some("xcodeproj") {
+                            project = Some(path.clone());
+                        }
+                        queue.push(path);
+                    }
+                }
+            }
+        }
+
+        Ok(project)
+    }
 }
 
 pub fn extract_ipa<P: AsRef<Path>>(ipa_path: P) -> Result<ExtractedIpa, ExtractionError> {
