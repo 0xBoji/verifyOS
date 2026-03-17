@@ -19,6 +19,12 @@ interface Finding {
   duration_ms?: number;
 }
 
+interface DiscoveryTarget {
+  path: string;
+  name: string;
+  type: "app" | "project" | "workspace" | "ipa";
+}
+
 export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
@@ -31,6 +37,9 @@ export default function Home() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [severityFilter, setSeverityFilter] = useState<string | null>(null);
+  const [discoveredTargets, setDiscoveredTargets] = useState<DiscoveryTarget[]>([]);
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const backendBaseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:7070";
 
@@ -173,28 +182,93 @@ export default function Home() {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
+    setIsDiscovering(true);
+    setStatus("Analyzing folder...");
+    const allFiles = Array.from(files);
+    setPendingFiles(allFiles);
+
+    // Discovery logic
+    const targets: DiscoveryTarget[] = [];
+    for (const f of allFiles) {
+      const path = f.webkitRelativePath;
+      if (path.includes('node_modules') || path.includes('.git') || path.includes('DerivedData') || path.includes('build/')) continue;
+
+      const parts = path.split('/');
+      for (const part of parts) {
+        const ext = part.split('.').pop();
+        if (ext === 'xcodeproj' || ext === 'xcworkspace' || ext === 'app') {
+          const idx = parts.indexOf(part);
+          const fullPath = parts.slice(0, idx + 1).join('/');
+          if (!targets.find(t => t.path === fullPath)) {
+            targets.push({
+              path: fullPath,
+              name: part,
+              type: ext === 'xcodeproj' ? 'project' : ext === 'xcworkspace' ? 'workspace' : 'app'
+            });
+          }
+        }
+      }
+      if (f.name.endsWith('.ipa')) {
+        targets.push({ path: path, name: f.name, type: 'ipa' });
+      }
+    }
+
+    if (targets.length > 1) {
+      setDiscoveredTargets(targets);
+      setStatus(`Found ${targets.length} potential targets. Please select one.`);
+      setIsDiscovering(false);
+      return;
+    }
+
+    // If only one found, or none (scan root)
+    const target = targets[0] || null;
+    await bundleAndSelect(allFiles, target);
+  };
+
+  const bundleAndSelect = async (allFiles: File[], target: DiscoveryTarget | null) => {
     setIsUploading(true);
-    const folderName = files[0].webkitRelativePath.split('/')[0] || "project";
-    setStatus(`Bundling ${folderName}...`);
+    setDiscoveredTargets([]);
+    setIsDiscovering(false);
+
+    const rootFolderName = allFiles[0].webkitRelativePath.split('/')[0];
+    const targetName = target ? target.name : rootFolderName;
+    setStatus(`Bundling ${targetName}...`);
 
     try {
       const zip = new JSZip();
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        zip.file(file.webkitRelativePath, file);
+      for (const file of allFiles) {
+        const path = file.webkitRelativePath;
+
+        // Smart Filtering
+        if (
+          path.includes('node_modules/') ||
+          path.includes('.git/') ||
+          path.includes('.DS_Store') ||
+          path.includes('DerivedData/') ||
+          path.includes('build/')
+        ) {
+          continue;
+        }
+
+        // Scope to target if selected
+        if (target && !path.startsWith(target.path)) {
+          continue;
+        }
+
+        zip.file(path, file);
       }
 
       const content = await zip.generateAsync({ type: "blob" });
-      const zippedFile = new File([content], `${folderName}.zip`, {
+      const zippedFile = new File([content], `${targetName}.zip`, {
         type: "application/zip",
       });
 
       setSelectedFile(zippedFile);
-      setStatus(`Ready: ${folderName}.zip (${(zippedFile.size / (1024 * 1024)).toFixed(2)} MB)`);
+      setPendingFiles([]);
+      setStatus(`Ready: ${targetName}.zip (${(zippedFile.size / (1024 * 1024)).toFixed(2)} MB)`);
       setResult(null);
       setRawResult(null);
-    } catch (error) {
-      console.error("Zipping failed", error);
+    } catch {
       setStatus("Failed to bundle folder");
     } finally {
       setIsUploading(false);
@@ -490,14 +564,42 @@ export default function Home() {
                 </button>
               </div>
             </div>
+
+            {discoveredTargets.length > 0 && (
+              <div className="status-pill" style={{ marginTop: '1rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '12px' }}>
+                <div style={{ marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.9rem' }}>Scannable items found:</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+                  {discoveredTargets.map((t, idx) => (
+                    <button
+                      key={idx}
+                      className="ghost-button"
+                      style={{ justifyContent: 'flex-start', padding: '8px 12px', fontSize: '13px' }}
+                      onClick={() => bundleAndSelect(pendingFiles, t)}
+                    >
+                      <FiFolder style={{ marginRight: '8px', opacity: 0.6 }} />
+                      <span style={{ flex: 1, textAlign: 'left' }}>{t.name}</span>
+                      <span style={{ opacity: 0.4, fontSize: '11px', textTransform: 'uppercase' }}>{t.type}</span>
+                    </button>
+                  ))}
+                  <button
+                    className="ghost-button"
+                    style={{ justifyContent: 'center', marginTop: '4px', opacity: 0.6, fontSize: '12px' }}
+                    onClick={() => bundleAndSelect(pendingFiles, null)}
+                  >
+                    Scan entire folder (slower)
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="upload-actions">
               <button
                 className="primary-button"
                 type="button"
                 onClick={handleUpload}
-                disabled={!selectedFile || isUploading}
+                disabled={!selectedFile || isUploading || isDiscovering}
               >
-                {isUploading ? "Uploading..." : "Run scan"}
+                {isUploading ? "Uploading..." : isDiscovering ? "Analyzing..." : "Run scan"}
               </button>
               <div className="upload-status">
                 {selectedFile ? selectedFile.name : "No file selected"}
