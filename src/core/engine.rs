@@ -53,43 +53,79 @@ impl Engine {
         self.rules.push(rule);
     }
 
-    pub fn run<P: AsRef<Path>>(&self, ipa_path: P) -> Result<EngineRun, OrchestratorError> {
+    pub fn run<P: AsRef<Path>>(&self, path_or_ipa: P) -> Result<EngineRun, OrchestratorError> {
         let run_started = Instant::now();
-        let path = ipa_path.as_ref();
+        let path = path_or_ipa.as_ref();
 
-        if path.is_dir() {
-            return self.run_on_bundle(path, run_started);
-        }
-
-        let extracted_ipa = extract_ipa(path)?;
-        let targets = extracted_ipa
-            .discover_targets()
-            .map_err(|e| OrchestratorError::Extraction(ExtractionError::Io(e)))?;
+        let mut extracted = None;
+        let targets = if path.is_dir() {
+            // Direct directory scan: mock ExtractedIpa discover_targets behavior
+            let mut targets = Vec::new();
+            let mut queue = vec![path.to_path_buf()];
+            while let Some(dir) = queue.pop() {
+                if let Ok(entries) = std::fs::read_dir(dir) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if p.is_dir() {
+                            let extension = p.extension().and_then(|e| e.to_str());
+                            match extension {
+                                Some("app") => targets.push((p.clone(), "app".to_string())),
+                                Some("xcodeproj") => targets.push((p.clone(), "project".to_string())),
+                                Some("xcworkspace") => {
+                                    targets.push((p.clone(), "workspace".to_string()))
+                                }
+                                _ => queue.push(p),
+                            }
+                        } else if p.extension().and_then(|e| e.to_str()) == Some("ipa") {
+                            targets.push((p.clone(), "ipa".to_string()));
+                        }
+                    }
+                }
+            }
+            targets
+        } else {
+            let extracted_ipa = extract_ipa(path)?;
+            let t = extracted_ipa.discover_targets().map_err(|e| OrchestratorError::Extraction(ExtractionError::Io(e)))?;
+            extracted = Some(extracted_ipa);
+            t
+        };
 
         let mut all_results = Vec::new();
         let mut total_cache_stats = ArtifactCacheStats::default();
 
         if targets.is_empty() {
             // Fallback to original logic if no specific targets found
-            let res = self.run_on_bundle_internal(&extracted_ipa.payload_dir, run_started, None)?;
+            let res = if let Some(ref ext) = extracted {
+                self.run_on_bundle_internal(&ext.payload_dir, run_started, None)?
+            } else {
+                self.run_on_bundle_internal(path, run_started, None)?
+            };
             return Ok(res);
         }
 
         for (target_path, target_type) in targets {
             let project_context = if target_type == "app" {
                 // Try to find a project context for this app if it's in a larger folder
-                extracted_ipa.get_project_path().ok().flatten().and_then(|p| {
-                    if p.extension().is_some_and(|e| e == "xcworkspace") {
-                        crate::parsers::xcworkspace_parser::Xcworkspace::from_path(&p)
-                            .ok()
-                            .and_then(|ws| ws.project_paths.first().cloned())
-                            .and_then(|proj_path| {
-                                crate::parsers::xcode_parser::XcodeProject::from_path(proj_path).ok()
-                            })
-                    } else {
-                        crate::parsers::xcode_parser::XcodeProject::from_path(&p).ok()
+                let mut p_context = None;
+                if let Some(parent) = target_path.parent() {
+                    if let Ok(entries) = std::fs::read_dir(parent) {
+                        for entry in entries.flatten() {
+                            let p = entry.path();
+                            if p.extension().is_some_and(|e| e == "xcworkspace") {
+                                p_context = crate::parsers::xcworkspace_parser::Xcworkspace::from_path(&p)
+                                    .ok()
+                                    .and_then(|ws| ws.project_paths.first().cloned())
+                                    .and_then(|proj_path| {
+                                        crate::parsers::xcode_parser::XcodeProject::from_path(proj_path).ok()
+                                    });
+                                break;
+                            } else if p.extension().is_some_and(|e| e == "xcodeproj") {
+                                p_context = crate::parsers::xcode_parser::XcodeProject::from_path(&p).ok();
+                            }
+                        }
                     }
-                })
+                }
+                p_context
             } else if target_type == "project" {
                 crate::parsers::xcode_parser::XcodeProject::from_path(&target_path).ok()
             } else if target_type == "workspace" {
@@ -117,10 +153,9 @@ impl Engine {
                 all_results.push(res);
             }
 
-            // Merge stats (simplified)
+            // Merge stats
             total_cache_stats.nested_bundles.hits += app_results.cache_stats.nested_bundles.hits;
             total_cache_stats.nested_bundles.misses += app_results.cache_stats.nested_bundles.misses;
-            // ... other stats could be merged if needed, but for now we focus on results
         }
 
         Ok(EngineRun {

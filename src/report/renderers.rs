@@ -7,7 +7,7 @@ use textwrap::wrap;
 
 pub fn render_table(report: &ReportData, timing_mode: TimingMode) -> String {
     let mut table = Table::new();
-    let mut header = vec!["Rule", "Category", "Severity", "Status", "Message"];
+    let mut header = vec!["Rule", "Target", "Category", "Severity", "Status", "Message"];
     if timing_mode == TimingMode::Full {
         header.push("Time");
     }
@@ -31,10 +31,11 @@ pub fn render_table(report: &ReportData, timing_mode: TimingMode) -> String {
         };
 
         let message = res.message.clone().unwrap_or_else(|| "PASS".to_string());
-        let wrapped = wrap(&message, 50).join("\n");
+        let wrapped = wrap(&message, 40).join("\n");
 
         let mut row = vec![
             Cell::new(res.rule_name.clone()),
+            Cell::new(res.target.clone()).fg(Color::Cyan),
             Cell::new(format!("{:?}", res.category)),
             severity_cell,
             status_cell,
@@ -187,37 +188,37 @@ pub fn render_markdown(
     }
     out.push('\n');
 
-    let mut failures = report
-        .results
-        .iter()
-        .filter(|r| matches!(r.status, RuleStatus::Fail | RuleStatus::Error));
-
-    if failures.next().is_none() {
-        out.push_str("## Findings\n\n- No failing findings.\n");
-        return out;
-    }
-
     out.push_str("## Findings\n\n");
-    for item in report
-        .results
-        .iter()
-        .filter(|r| matches!(r.status, RuleStatus::Fail | RuleStatus::Error))
-    {
-        out.push_str(&format!("- **{}** (`{}`)\n", item.rule_name, item.rule_id));
-        out.push_str(&format!("  - Category: `{:?}`\n", item.category));
-        out.push_str(&format!("  - Severity: `{:?}`\n", item.severity));
-        out.push_str(&format!("  - Status: `{:?}`\n", item.status));
-        if let Some(message) = &item.message {
-            out.push_str(&format!("  - Message: {}\n", message));
+    for target in &report.scanned_targets {
+        let target_findings: Vec<_> = report
+            .results
+            .iter()
+            .filter(|r| &r.target == target && matches!(r.status, RuleStatus::Fail | RuleStatus::Error))
+            .collect();
+
+        if target_findings.is_empty() {
+            continue;
         }
-        if let Some(evidence) = &item.evidence {
-            out.push_str(&format!("  - Evidence: {}\n", evidence));
-        }
-        if !item.recommendation.is_empty() {
-            out.push_str(&format!("  - Recommendation: {}\n", item.recommendation));
-        }
-        if timing_mode == TimingMode::Full {
-            out.push_str(&format!("  - Time: {} ms\n", item.duration_ms));
+
+        out.push_str(&format!("### Target: `{target}`\n\n"));
+        for item in target_findings {
+            out.push_str(&format!("- **{}** (`{}`)\n", item.rule_name, item.rule_id));
+            out.push_str(&format!("  - Category: `{:?}`\n", item.category));
+            out.push_str(&format!("  - Severity: `{:?}`\n", item.severity));
+            out.push_str(&format!("  - Status: `{:?}`\n", item.status));
+            if let Some(message) = &item.message {
+                out.push_str(&format!("  - Message: {}\n", message));
+            }
+            if let Some(evidence) = &item.evidence {
+                out.push_str(&format!("  - Evidence: {}\n", evidence));
+            }
+            if !item.recommendation.is_empty() {
+                out.push_str(&format!("  - Recommendation: {}\n", item.recommendation));
+            }
+            if timing_mode == TimingMode::Full {
+                out.push_str(&format!("  - Time: {} ms\n", item.duration_ms));
+            }
+            out.push('\n');
         }
     }
 

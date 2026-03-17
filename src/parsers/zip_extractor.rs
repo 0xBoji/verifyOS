@@ -86,17 +86,24 @@ impl ExtractedIpa {
             if let Ok(entries) = fs::read_dir(dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
+                    let extension = path.extension().and_then(|e| e.to_str());
+                    
                     if path.is_dir() {
-                        let extension = path.extension().and_then(|e| e.to_str());
                         match extension {
                             Some("app") => targets.push((path.clone(), "app".to_string())),
                             Some("xcodeproj") => targets.push((path.clone(), "project".to_string())),
                             Some("xcworkspace") => {
                                 targets.push((path.clone(), "workspace".to_string()))
                             }
-                            _ => queue.push(path),
+                            _ => {
+                                // Skip common non-source directories
+                                let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                                if name != "node_modules" && name != ".git" && name != "DerivedData" && name != "build" {
+                                    queue.push(path);
+                                }
+                            }
                         }
-                    } else if path.extension().and_then(|e| e.to_str()) == Some("ipa") {
+                    } else if extension == Some("ipa") {
                         targets.push((path.clone(), "ipa".to_string()));
                     }
                 }

@@ -30,4 +30,15 @@ apps/frontend/pnpm-lock.yaml
 **/terraform.tfstate
 **/terraform.tfstate.backup
 **/terraform.tfvars
-**/terraform.tfvars.json
+# Results
+*.json
+!Cargo.toml
+!package.json
+!tsconfig.json
+
+# Temporary test artifacts
+AppStoreMock.zip
+broken_ws.zip
+tmp_broken_ws/
+repro_aggregate.rs
+examples/repro_aggregate.rs

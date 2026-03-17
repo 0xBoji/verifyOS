@@ -17,6 +17,7 @@ interface Finding {
   recommendation?: string;
   evidence?: string | Record<string, unknown>;
   duration_ms?: number;
+  target: string;
 }
 
 interface DiscoveryTarget {
@@ -637,7 +638,10 @@ export default function Home() {
                     {summary.failures.slice(0, 5).map((item, index) => (
                       <li key={`${item.rule_id ?? "rule"}-${index}`}>
                         <strong>{String(item.rule_name ?? "Untitled rule")}</strong>
-                        <span>{String(item.recommendation ?? "Review this rule")}</span>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <span className="pill-chip" style={{ fontSize: '9px', padding: '1px 6px', opacity: 0.8 }}>{String(item.target)}</span>
+                          <span>{String(item.recommendation ?? "Review this rule")}</span>
+                        </div>
                       </li>
                     ))}
                     {summary.failures.length === 0 ? (
@@ -732,9 +736,12 @@ export default function Home() {
                                 <div key={idx} className="tree-finding">
                                   <div className="tree-finding-title">
                                     <strong>{item.rule_name}</strong>
-                                    <span className={`pill-chip pill-chip--${String(item.severity).toLowerCase()}`} style={{ padding: "2px 8px", fontSize: "10px" }}>
-                                      {item.severity}
-                                    </span>
+                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                      <span className="pill-chip" style={{ fontSize: '9px', padding: '1px 6px', background: 'rgba(255,255,255,0.05)' }}>{item.target}</span>
+                                      <span className={`pill-chip pill-chip--${String(item.severity).toLowerCase()}`} style={{ padding: "2px 8px", fontSize: "10px" }}>
+                                        {item.severity}
+                                      </span>
+                                    </div>
                                   </div>
                                   <div className="tree-finding-meta">
                                     <span>Rule: {item.rule_id}</span>

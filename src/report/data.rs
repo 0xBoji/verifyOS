@@ -12,6 +12,7 @@ pub struct ReportData {
     pub cache_stats: ArtifactCacheStats,
     pub slow_rules: Vec<SlowRule>,
     pub results: Vec<ReportItem>,
+    pub scanned_targets: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,6 +121,10 @@ pub fn build_report(
         });
     }
 
+    let mut scanned_targets: Vec<String> = items.iter().map(|i| i.target.clone()).collect();
+    scanned_targets.sort();
+    scanned_targets.dedup();
+
     let report = ReportData {
         ruleset_version: RULESET_VERSION.to_string(),
         generated_at_unix,
@@ -127,6 +132,7 @@ pub fn build_report(
         cache_stats,
         slow_rules: Vec::new(),
         results: items,
+        scanned_targets,
     };
 
     ReportData {
