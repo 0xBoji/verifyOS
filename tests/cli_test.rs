@@ -62,7 +62,10 @@ fn test_good_app_passes_rules() {
             match res.report {
                 Ok(report) if report.status == RuleStatus::Fail => {
                     has_errors = true;
-                    println!("Rule failed in good_app: {} - {:?}", res.rule_id, report.message);
+                    println!(
+                        "Rule failed in good_app: {} - {:?}",
+                        res.rule_id, report.message
+                    );
                 }
                 Err(err) => {
                     // Ignore MachO errors in mock binaries for this test

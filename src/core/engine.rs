@@ -70,7 +70,9 @@ impl Engine {
                             let extension = p.extension().and_then(|e| e.to_str());
                             match extension {
                                 Some("app") => targets.push((p.clone(), "app".to_string())),
-                                Some("xcodeproj") => targets.push((p.clone(), "project".to_string())),
+                                Some("xcodeproj") => {
+                                    targets.push((p.clone(), "project".to_string()))
+                                }
                                 Some("xcworkspace") => {
                                     targets.push((p.clone(), "workspace".to_string()))
                                 }
@@ -85,7 +87,9 @@ impl Engine {
             targets
         } else {
             let extracted_ipa = extract_ipa(path)?;
-            let t = extracted_ipa.discover_targets().map_err(|e| OrchestratorError::Extraction(ExtractionError::Io(e)))?;
+            let t = extracted_ipa
+                .discover_targets()
+                .map_err(|e| OrchestratorError::Extraction(ExtractionError::Io(e)))?;
             extracted = Some(extracted_ipa);
             t
         };
@@ -112,15 +116,20 @@ impl Engine {
                         for entry in entries.flatten() {
                             let p = entry.path();
                             if p.extension().is_some_and(|e| e == "xcworkspace") {
-                                p_context = crate::parsers::xcworkspace_parser::Xcworkspace::from_path(&p)
-                                    .ok()
-                                    .and_then(|ws| ws.project_paths.first().cloned())
-                                    .and_then(|proj_path| {
-                                        crate::parsers::xcode_parser::XcodeProject::from_path(proj_path).ok()
-                                    });
+                                p_context =
+                                    crate::parsers::xcworkspace_parser::Xcworkspace::from_path(&p)
+                                        .ok()
+                                        .and_then(|ws| ws.project_paths.first().cloned())
+                                        .and_then(|proj_path| {
+                                            crate::parsers::xcode_parser::XcodeProject::from_path(
+                                                proj_path,
+                                            )
+                                            .ok()
+                                        });
                                 break;
                             } else if p.extension().is_some_and(|e| e == "xcodeproj") {
-                                p_context = crate::parsers::xcode_parser::XcodeProject::from_path(&p).ok();
+                                p_context =
+                                    crate::parsers::xcode_parser::XcodeProject::from_path(&p).ok();
                             }
                         }
                     }
@@ -141,7 +150,7 @@ impl Engine {
 
             let app_results =
                 self.run_on_bundle_internal(&target_path, run_started, project_context)?;
-            
+
             // Tag results with target name
             let target_name = target_path
                 .file_name()
@@ -155,7 +164,8 @@ impl Engine {
 
             // Merge stats
             total_cache_stats.nested_bundles.hits += app_results.cache_stats.nested_bundles.hits;
-            total_cache_stats.nested_bundles.misses += app_results.cache_stats.nested_bundles.misses;
+            total_cache_stats.nested_bundles.misses +=
+                app_results.cache_stats.nested_bundles.misses;
         }
 
         Ok(EngineRun {

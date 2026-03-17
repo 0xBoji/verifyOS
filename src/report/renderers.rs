@@ -7,7 +7,9 @@ use textwrap::wrap;
 
 pub fn render_table(report: &ReportData, timing_mode: TimingMode) -> String {
     let mut table = Table::new();
-    let mut header = vec!["Rule", "Target", "Category", "Severity", "Status", "Message"];
+    let mut header = vec![
+        "Rule", "Target", "Category", "Severity", "Status", "Message",
+    ];
     if timing_mode == TimingMode::Full {
         header.push("Time");
     }
@@ -193,7 +195,9 @@ pub fn render_markdown(
         let target_findings: Vec<_> = report
             .results
             .iter()
-            .filter(|r| &r.target == target && matches!(r.status, RuleStatus::Fail | RuleStatus::Error))
+            .filter(|r| {
+                &r.target == target && matches!(r.status, RuleStatus::Fail | RuleStatus::Error)
+            })
             .collect();
 
         if target_findings.is_empty() {

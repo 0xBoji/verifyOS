@@ -12,6 +12,7 @@ pub struct ReportData {
     pub cache_stats: ArtifactCacheStats,
     pub slow_rules: Vec<SlowRule>,
     pub results: Vec<ReportItem>,
+    #[serde(default)]
     pub scanned_targets: Vec<String>,
 }
 

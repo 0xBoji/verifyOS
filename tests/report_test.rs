@@ -23,6 +23,7 @@ fn sample_report(items: Vec<ReportItem>) -> ReportData {
             duration_ms: 7,
         }],
         results: items,
+        scanned_targets: vec!["TestApp.app".to_string()],
     }
 }
 
