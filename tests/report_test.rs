@@ -32,6 +32,7 @@ fn sample_item(severity: Severity, status: RuleStatus) -> ReportItem {
         rule_name: "Sample Rule".to_string(),
         category: RuleCategory::Other,
         severity,
+        target: "TestApp.app".to_string(),
         status,
         message: None,
         evidence: None,

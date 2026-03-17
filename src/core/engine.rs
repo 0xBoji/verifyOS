@@ -24,6 +24,7 @@ pub struct EngineResult {
     pub rule_name: &'static str,
     pub category: RuleCategory,
     pub severity: Severity,
+    pub target: String,
     pub recommendation: &'static str,
     pub report: Result<RuleReport, RuleError>,
     pub duration_ms: u128,
@@ -61,52 +62,72 @@ impl Engine {
         }
 
         let extracted_ipa = extract_ipa(path)?;
-
-        // Attempt to discover project metadata during extraction
-        let discovered_project_path = extracted_ipa
-            .get_project_path()
+        let targets = extracted_ipa
+            .discover_targets()
             .map_err(|e| OrchestratorError::Extraction(ExtractionError::Io(e)))?;
 
-        let discovered_project = discovered_project_path.as_ref().and_then(|p| {
-            if p.extension().is_some_and(|e| e == "xcworkspace") {
-                crate::parsers::xcworkspace_parser::Xcworkspace::from_path(p)
+        let mut all_results = Vec::new();
+        let mut total_cache_stats = ArtifactCacheStats::default();
+
+        if targets.is_empty() {
+            // Fallback to original logic if no specific targets found
+            let res = self.run_on_bundle_internal(&extracted_ipa.payload_dir, run_started, None)?;
+            return Ok(res);
+        }
+
+        for (target_path, target_type) in targets {
+            let project_context = if target_type == "app" {
+                // Try to find a project context for this app if it's in a larger folder
+                extracted_ipa.get_project_path().ok().flatten().and_then(|p| {
+                    if p.extension().is_some_and(|e| e == "xcworkspace") {
+                        crate::parsers::xcworkspace_parser::Xcworkspace::from_path(&p)
+                            .ok()
+                            .and_then(|ws| ws.project_paths.first().cloned())
+                            .and_then(|proj_path| {
+                                crate::parsers::xcode_parser::XcodeProject::from_path(proj_path).ok()
+                            })
+                    } else {
+                        crate::parsers::xcode_parser::XcodeProject::from_path(&p).ok()
+                    }
+                })
+            } else if target_type == "project" {
+                crate::parsers::xcode_parser::XcodeProject::from_path(&target_path).ok()
+            } else if target_type == "workspace" {
+                crate::parsers::xcworkspace_parser::Xcworkspace::from_path(&target_path)
                     .ok()
                     .and_then(|ws| ws.project_paths.first().cloned())
                     .and_then(|proj_path| {
                         crate::parsers::xcode_parser::XcodeProject::from_path(proj_path).ok()
                     })
             } else {
-                crate::parsers::xcode_parser::XcodeProject::from_path(p).ok()
+                None
+            };
+
+            let app_results =
+                self.run_on_bundle_internal(&target_path, run_started, project_context)?;
+            
+            // Tag results with target name
+            let target_name = target_path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "Unknown".to_string());
+
+            for mut res in app_results.results {
+                res.target = target_name.clone();
+                all_results.push(res);
             }
-        });
 
-        let app_bundle_path = extracted_ipa
-            .get_app_bundle_path()
-            .map_err(|e| OrchestratorError::Extraction(ExtractionError::Io(e)))?;
+            // Merge stats (simplified)
+            total_cache_stats.nested_bundles.hits += app_results.cache_stats.nested_bundles.hits;
+            total_cache_stats.nested_bundles.misses += app_results.cache_stats.nested_bundles.misses;
+            // ... other stats could be merged if needed, but for now we focus on results
+        }
 
-        let app_bundle_path = match app_bundle_path {
-            Some(p) => p,
-            None => {
-                // If we found a project but no .app, we can still proceed with the extraction root
-                // as a context and let rules that check project metadata run.
-                if discovered_project_path.is_some() {
-                    extracted_ipa.payload_dir.clone()
-                } else {
-                    let mut entries = Vec::new();
-                    if let Ok(rd) = std::fs::read_dir(&extracted_ipa.payload_dir) {
-                        for entry in rd.flatten().take(10) {
-                            entries.push(entry.file_name().to_string_lossy().into_owned());
-                        }
-                    }
-                    return Err(OrchestratorError::AppBundleNotFoundWithContext(
-                        extracted_ipa.payload_dir.display().to_string(),
-                        entries.join(", "),
-                    ));
-                }
-            }
-        };
-
-        self.run_on_bundle_internal(&app_bundle_path, run_started, discovered_project)
+        Ok(EngineRun {
+            results: all_results,
+            total_duration_ms: run_started.elapsed().as_millis(),
+            cache_stats: total_cache_stats,
+        })
     }
 
     pub fn run_on_bundle<P: AsRef<Path>>(
@@ -147,6 +168,10 @@ impl Engine {
                 rule_name: rule.name(),
                 category: rule.category(),
                 severity: rule.severity(),
+                target: app_bundle_path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "Bundle".to_string()),
                 recommendation: rule.recommendation(),
                 report: res,
                 duration_ms: rule_started.elapsed().as_millis(),

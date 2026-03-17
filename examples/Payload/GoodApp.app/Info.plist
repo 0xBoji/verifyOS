@@ -2,22 +2,27 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCameraUsageDescription</key>
-	<string>Camera is used to scan barcodes.</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.example.GoodApp</string>
-    <key>LSApplicationQueriesSchemes</key>
-    <array>
-        <string>fb</string>
-        <string>twitter</string>
-    </array>
-    <key>UIRequiredDeviceCapabilities</key>
-    <array>
-        <string>arm64</string>
-    </array>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
-    <key>CFBundleVersion</key>
-    <string>100</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.verifyos.GoodApp</string>
+	<key>CFBundleExecutable</key>
+	<string>GoodApp</string>
+	<key>CFBundleName</key>
+	<string>GoodApp</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array/>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+    <key>DTXcode</key>
+    <string>1500</string>
+    <key>NSCameraUsageDescription</key>
+    <string>We need camera access to scan QR codes.</string>
 </dict>
 </plist>

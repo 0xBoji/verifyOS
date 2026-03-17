@@ -336,6 +336,7 @@ mod tests {
             rule_name,
             category: RuleCategory::Other,
             severity,
+            target: "Bundle".to_string(),
             recommendation: "",
             report: Ok(report),
             duration_ms: 1,

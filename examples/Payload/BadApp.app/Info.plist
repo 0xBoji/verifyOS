@@ -2,20 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Missing NSCameraUsageDescription intentionally to trigger rule failure -->
-    <key>CFBundleIdentifier</key>
-    <string>com.example.BadApp</string>
-    <key>LSApplicationQueriesSchemes</key>
-    <array>
-        <string>fb</string>
-    </array>
-    <key>UIRequiredDeviceCapabilities</key>
-    <array>
-        <string>arm64</string>
-    </array>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
-    <key>CFBundleVersion</key>
-    <string>100</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.verifyos.BadApp</string>
+	<key>CFBundleExecutable</key>
+	<string>BadApp</string>
 </dict>
 </plist>

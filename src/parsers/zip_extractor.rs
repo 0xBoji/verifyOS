@@ -77,6 +77,33 @@ impl ExtractedIpa {
 
         Ok(project)
     }
+
+    pub fn discover_targets(&self) -> io::Result<Vec<(PathBuf, String)>> {
+        let mut targets = Vec::new();
+        let mut queue = vec![self.payload_dir.clone()];
+
+        while let Some(dir) = queue.pop() {
+            if let Ok(entries) = fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        let extension = path.extension().and_then(|e| e.to_str());
+                        match extension {
+                            Some("app") => targets.push((path.clone(), "app".to_string())),
+                            Some("xcodeproj") => targets.push((path.clone(), "project".to_string())),
+                            Some("xcworkspace") => {
+                                targets.push((path.clone(), "workspace".to_string()))
+                            }
+                            _ => queue.push(path),
+                        }
+                    } else if path.extension().and_then(|e| e.to_str()) == Some("ipa") {
+                        targets.push((path.clone(), "ipa".to_string()));
+                    }
+                }
+            }
+        }
+        Ok(targets)
+    }
 }
 
 pub fn extract_ipa<P: AsRef<Path>>(ipa_path: P) -> Result<ExtractedIpa, ExtractionError> {

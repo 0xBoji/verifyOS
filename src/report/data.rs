@@ -20,6 +20,7 @@ pub struct ReportItem {
     pub rule_name: String,
     pub category: RuleCategory,
     pub severity: Severity,
+    pub target: String,
     pub status: RuleStatus,
     pub message: Option<String>,
     pub evidence: Option<String>,
@@ -110,6 +111,7 @@ pub fn build_report(
             rule_name: res.rule_name.to_string(),
             category: res.category,
             severity: res.severity,
+            target: res.target.clone(),
             status,
             message,
             evidence,
@@ -192,8 +194,9 @@ pub fn top_slow_rules(report: &ReportData, limit: usize) -> Vec<SlowRule> {
 
 fn finding_key(item: &ReportItem) -> String {
     format!(
-        "{}|{}",
+        "{}|{}|{}",
         item.rule_id,
+        item.target,
         item.evidence.clone().unwrap_or_default()
     )
 }
