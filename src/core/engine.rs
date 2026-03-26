@@ -4,9 +4,9 @@ use crate::rules::core::{
     AppStoreRule, ArtifactCacheStats, ArtifactContext, RuleCategory, RuleError, RuleReport,
     Severity,
 };
+use rayon::prelude::*;
 use std::path::Path;
 use std::time::Instant;
-use rayon::prelude::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OrchestratorError {

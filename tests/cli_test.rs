@@ -53,7 +53,9 @@ fn test_good_app_passes_rules() {
     let good_app = get_example_path("good_app.ipa");
     let mut engine = Engine::new();
     let mut selection = RuleSelection::default();
-    selection.exclude.insert("RULE_LAUNCH_SCREEN_STORYBOARD".to_string());
+    selection
+        .exclude
+        .insert("RULE_LAUNCH_SCREEN_STORYBOARD".to_string());
     register_rules(&mut engine, ScanProfile::Full, &selection);
 
     let run = engine.run(&good_app).expect("Engine orchestrator failed");

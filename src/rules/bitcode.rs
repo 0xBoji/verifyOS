@@ -1,4 +1,6 @@
-use crate::rules::core::{AppStoreRule, ArtifactContext, RuleCategory, RuleError, RuleReport, RuleStatus, Severity};
+use crate::rules::core::{
+    AppStoreRule, ArtifactContext, RuleCategory, RuleError, RuleReport, RuleStatus, Severity,
+};
 
 pub struct BitcodeRule;
 
@@ -26,11 +28,13 @@ impl AppStoreRule for BitcodeRule {
     fn evaluate(&self, artifact: &ArtifactContext) -> Result<RuleReport, RuleError> {
         let executable_path = match artifact.executable_path_for_bundle(artifact.app_bundle_path) {
             Some(path) => path,
-            None => return Ok(RuleReport {
-                status: RuleStatus::Skip,
-                message: Some("No executable found in bundle".to_string()),
-                evidence: None,
-            }),
+            None => {
+                return Ok(RuleReport {
+                    status: RuleStatus::Skip,
+                    message: Some("No executable found in bundle".to_string()),
+                    evidence: None,
+                })
+            }
         };
 
         if !executable_path.exists() {
@@ -42,9 +46,9 @@ impl AppStoreRule for BitcodeRule {
         }
 
         let bytes = std::fs::read(&executable_path).map_err(|e| {
-            RuleError::MachO(crate::parsers::macho_parser::MachOError::ParseError(Box::new(
-                apple_codesign::AppleCodesignError::Io(e),
-            )))
+            RuleError::MachO(crate::parsers::macho_parser::MachOError::ParseError(
+                Box::new(apple_codesign::AppleCodesignError::Io(e)),
+            ))
         })?;
 
         // We search for the __LLVM segment name in the Mach-O binary.

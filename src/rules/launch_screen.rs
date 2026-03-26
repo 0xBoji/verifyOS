@@ -1,4 +1,6 @@
-use crate::rules::core::{AppStoreRule, ArtifactContext, RuleCategory, RuleError, RuleReport, RuleStatus, Severity};
+use crate::rules::core::{
+    AppStoreRule, ArtifactContext, RuleCategory, RuleError, RuleReport, RuleStatus, Severity,
+};
 
 pub struct LaunchScreenStoryboardRule;
 

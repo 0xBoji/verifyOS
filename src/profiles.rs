@@ -1,9 +1,11 @@
 use crate::core::engine::Engine;
 use crate::rules::ats::{AtsAuditRule, AtsExceptionsGranularityRule};
+use crate::rules::bitcode::BitcodeRule;
 use crate::rules::bundle_leakage::BundleResourceLeakageRule;
 use crate::rules::bundle_metadata::BundleMetadataConsistencyRule;
 use crate::rules::core::AppStoreRule;
 use crate::rules::core::{RuleCategory, Severity};
+use crate::rules::deprecated_api::DeprecatedApiRule;
 use crate::rules::entitlements::{EntitlementsMismatchRule, EntitlementsProvisioningMismatchRule};
 use crate::rules::export_compliance::ExportComplianceRule;
 use crate::rules::extensions::ExtensionEntitlementsCompatibilityRule;
@@ -12,6 +14,7 @@ use crate::rules::info_plist::{
     LSApplicationQueriesSchemesAuditRule, UIRequiredDeviceCapabilitiesAuditRule,
     UsageDescriptionsRule, UsageDescriptionsValueRule,
 };
+use crate::rules::launch_screen::LaunchScreenStoryboardRule;
 use crate::rules::permissions::CameraUsageDescriptionRule;
 use crate::rules::privacy::MissingPrivacyManifestRule;
 use crate::rules::privacy_manifest::PrivacyManifestCompletenessRule;
@@ -19,9 +22,6 @@ use crate::rules::privacy_sdk::PrivacyManifestSdkCrossCheckRule;
 use crate::rules::private_api::PrivateApiRule;
 use crate::rules::signing::EmbeddedCodeSignatureTeamRule;
 use crate::rules::xcode_requirements::XcodeVersionRule;
-use crate::rules::bitcode::BitcodeRule;
-use crate::rules::deprecated_api::DeprecatedApiRule;
-use crate::rules::launch_screen::LaunchScreenStoryboardRule;
 use clap::ValueEnum;
 use serde::Serialize;
 use std::collections::BTreeMap;

@@ -10,9 +10,9 @@ use crate::parsers::plist_reader::{InfoPlist, PlistError};
 use crate::parsers::provisioning_profile::{ProvisioningError, ProvisioningProfile};
 use miette::Diagnostic;
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 pub const RULESET_VERSION: &str = "0.1.0";
 
@@ -193,7 +193,12 @@ impl<'a> ArtifactContext<'a> {
         executable_path: impl AsRef<Path>,
     ) -> Result<MachOSignatureSummary, MachOError> {
         let executable_path = executable_path.as_ref().to_path_buf();
-        if let Some(summary) = self.signature_summary_cache.lock().unwrap().get(&executable_path) {
+        if let Some(summary) = self
+            .signature_summary_cache
+            .lock()
+            .unwrap()
+            .get(&executable_path)
+        {
             self.cache_stats.lock().unwrap().signature_summary.hits += 1;
             return Ok(summary.clone());
         }
@@ -201,7 +206,8 @@ impl<'a> ArtifactContext<'a> {
         self.cache_stats.lock().unwrap().signature_summary.misses += 1;
         let summary = read_macho_signature_summary(&executable_path)?;
         self.signature_summary_cache
-            .lock().unwrap()
+            .lock()
+            .unwrap()
             .insert(executable_path, summary.clone());
         Ok(summary)
     }
@@ -234,7 +240,8 @@ impl<'a> ArtifactContext<'a> {
         };
 
         self.bundle_plist_cache
-            .lock().unwrap()
+            .lock()
+            .unwrap()
             .insert(bundle_path.to_path_buf(), plist.clone());
         Ok(plist)
     }
@@ -248,7 +255,12 @@ impl<'a> ArtifactContext<'a> {
             None => return Ok(None),
         };
 
-        if let Some(entitlements) = self.entitlements_cache.lock().unwrap().get(&executable_path) {
+        if let Some(entitlements) = self
+            .entitlements_cache
+            .lock()
+            .unwrap()
+            .get(&executable_path)
+        {
             self.cache_stats.lock().unwrap().entitlements.hits += 1;
             return Ok(entitlements.clone());
         }
@@ -267,7 +279,8 @@ impl<'a> ArtifactContext<'a> {
         };
 
         self.entitlements_cache
-            .lock().unwrap()
+            .lock()
+            .unwrap()
             .insert(executable_path, entitlements.clone());
         Ok(entitlements)
     }
@@ -279,7 +292,8 @@ impl<'a> ArtifactContext<'a> {
         let provisioning_path = bundle_path.join("embedded.mobileprovision");
         if let Some(profile) = self
             .provisioning_profile_cache
-            .lock().unwrap()
+            .lock()
+            .unwrap()
             .get(&provisioning_path)
         {
             self.cache_stats.lock().unwrap().provisioning_profile.hits += 1;
@@ -294,7 +308,8 @@ impl<'a> ArtifactContext<'a> {
         };
 
         self.provisioning_profile_cache
-            .lock().unwrap()
+            .lock()
+            .unwrap()
             .insert(provisioning_path, profile.clone());
         Ok(profile)
     }
