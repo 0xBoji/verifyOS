@@ -90,7 +90,9 @@ impl InfoPlist {
                 .get("CFBundlePrimaryIcon")
                 .and_then(|v| v.as_dictionary())
             {
-                if let Some(files) = primary_icon.get("CFBundleIconFiles").and_then(|v| v.as_array())
+                if let Some(files) = primary_icon
+                    .get("CFBundleIconFiles")
+                    .and_then(|v| v.as_array())
                 {
                     for file in files {
                         if let Some(name) = file.as_string() {

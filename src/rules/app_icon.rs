@@ -51,10 +51,7 @@ impl AppStoreRule for AppIconAlphaRule {
             // App Store icons are usually the largest PNGs.
             // We search for files matching the name patterns.
             for file_path in &all_files {
-                let file_name = file_path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("");
+                let file_name = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
                 if file_name.starts_with(&name) && file_name.ends_with(".png") {
                     if let Ok(has_alpha) = check_png_alpha(file_path) {
                         if has_alpha {
