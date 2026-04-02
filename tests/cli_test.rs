@@ -177,6 +177,53 @@ fn test_show_rule_json_output() {
 }
 
 #[test]
+fn test_scan_subcommand_json_matches_legacy_scan() {
+    let legacy = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "--app",
+            get_example_path("bad_app.ipa").to_str().expect("utf8 path"),
+            "--format",
+            "json",
+            "--no-progress",
+            "--fail-on",
+            "off",
+        ])
+        .output()
+        .expect("legacy scan should run");
+
+    let explicit = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "scan",
+            "--app",
+            get_example_path("bad_app.ipa").to_str().expect("utf8 path"),
+            "--format",
+            "json",
+            "--no-progress",
+            "--fail-on",
+            "off",
+        ])
+        .output()
+        .expect("scan subcommand should run");
+
+    assert!(legacy.status.success());
+    assert!(explicit.status.success());
+
+    let legacy_json: serde_json::Value =
+        serde_json::from_slice(&legacy.stdout).expect("legacy stdout should be json");
+    let explicit_json: serde_json::Value =
+        serde_json::from_slice(&explicit.stdout).expect("explicit stdout should be json");
+
+    assert_eq!(
+        legacy_json["results"].as_array().map(Vec::len),
+        explicit_json["results"].as_array().map(Vec::len)
+    );
+    assert_eq!(
+        legacy_json["scanned_targets"],
+        explicit_json["scanned_targets"]
+    );
+}
+
+#[test]
 fn test_pr_comment_subcommand_prefers_existing_comment_file() {
     let dir = tempdir().expect("temp dir");
     let output_dir = dir.path().join("artifacts");
@@ -377,6 +424,70 @@ fn test_analyze_size_subcommand_reports_json_breakdown() {
         .expect("categories")
         .iter()
         .any(|item| item["category"] == "asset"));
+}
+
+#[test]
+fn test_quiet_scan_suppresses_stdout_and_still_writes_markdown() {
+    let dir = tempdir().expect("temp dir");
+    let markdown = dir.path().join("report.md");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "scan",
+            "--app",
+            get_example_path("bad_app.ipa").to_str().expect("utf8 path"),
+            "--quiet",
+            "--md-out",
+            markdown.to_str().expect("utf8 markdown path"),
+            "--fail-on",
+            "off",
+        ])
+        .output()
+        .expect("quiet scan should run");
+
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).expect("utf8 stdout"), "");
+
+    let contents = std::fs::read_to_string(markdown).expect("markdown output should exist");
+    assert!(contents.contains("# verifyOS-cli Report"));
+}
+
+#[test]
+fn test_summary_subcommand_summarizes_report_json() {
+    let dir = tempdir().expect("temp dir");
+    let report_path = dir.path().join("report.json");
+
+    let scan = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "scan",
+            "--app",
+            get_example_path("bad_app.ipa").to_str().expect("utf8 path"),
+            "--format",
+            "json",
+            "--no-progress",
+            "--fail-on",
+            "off",
+        ])
+        .output()
+        .expect("scan should run");
+
+    assert!(scan.status.success());
+    std::fs::write(&report_path, &scan.stdout).expect("write report");
+
+    let summary = Command::new(env!("CARGO_BIN_EXE_voc"))
+        .args([
+            "summary",
+            "--report",
+            report_path.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("summary should run");
+
+    assert!(summary.status.success());
+    let stdout = String::from_utf8(summary.stdout).expect("utf8");
+    assert!(stdout.contains("# verifyOS summary"));
+    assert!(stdout.contains("Status breakdown"));
+    assert!(stdout.contains("Top findings"));
 }
 
 #[test]

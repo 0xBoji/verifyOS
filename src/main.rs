@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use comfy_table::Table;
 use indicatif::{ProgressBar, ProgressStyle};
 use miette::{IntoDiagnostic, Result};
+use std::io::{stderr, IsTerminal};
 use std::path::PathBuf;
 
 mod commands;
@@ -12,13 +13,15 @@ use commands::handoff::{run as run_handoff_command, HandoffArgs};
 use commands::init::{run as run_init_command, InitArgs};
 use commands::lsp::{run as run_lsp_command, LspArgs};
 use commands::pr_comment::{run as run_pr_comment_command, PrCommentArgs};
+use commands::scan::ScanArgs;
+use commands::summary::{run as run_summary_command, SummaryArgs};
 use commands::support::{
     agent_pack_format_key, build_rule_selection, fail_on_key, output_format_key,
     parse_agent_pack_format, parse_fail_on, parse_output_format, parse_profile, parse_timing_mode,
     profile_key, timing_key,
 };
 
-use verifyos_cli::config::{load_file_config, resolve_runtime_config, CliOverrides};
+use verifyos_cli::config::{load_file_config, resolve_runtime_config, CliOverrides, FileConfig};
 use verifyos_cli::core::engine::Engine;
 use verifyos_cli::profiles::{
     register_rules, rule_detail, rule_inventory, RuleDetailItem, RuleInventoryItem, RuleSelection,
@@ -40,27 +43,27 @@ const HELP_BANNER: &str = r#"
 verify-OS
 "#;
 
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 enum OutputFormat {
     Table,
     Json,
     Sarif,
 }
 
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 enum FailOnLevel {
     Off,
     Error,
     Warning,
 }
 
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 enum TimingLevel {
     Summary,
     Full,
 }
 
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 enum AgentPackOutput {
     Json,
     Markdown,
@@ -80,57 +83,12 @@ struct Args {
     #[command(subcommand)]
     command: Option<Commands>,
 
-    /// Path to the iOS App Bundle (.ipa or .app)
-    #[arg(short, long, required_unless_present_any = ["list_rules", "show_rule"])]
-    app: Option<PathBuf>,
-
     /// Optional config file path. If omitted, verifyos.toml is used when present
     #[arg(long)]
     config: Option<PathBuf>,
 
-    /// Path to a sibling .xcodeproj for deeper analysis (auto-detected if sibling to app)
-    #[arg(long)]
-    project: Option<PathBuf>,
-
-    /// Output format: table, json, sarif
-    #[arg(long, value_enum)]
-    format: Option<OutputFormat>,
-
-    /// Baseline JSON file to suppress existing findings
-    #[arg(long)]
-    baseline: Option<PathBuf>,
-
-    /// Write a clean Markdown report to a file (agent-friendly)
-    #[arg(long)]
-    md_out: Option<PathBuf>,
-
-    /// Write a machine-readable fix pack for AI agents
-    #[arg(long)]
-    agent_pack: Option<PathBuf>,
-
-    /// Agent pack output format: json, markdown, bundle
-    #[arg(long, value_enum)]
-    agent_pack_format: Option<AgentPackOutput>,
-
-    /// Scan profile: basic or full
-    #[arg(long, value_enum)]
-    profile: Option<ScanProfile>,
-
-    /// Exit with code 1 when findings reach this severity threshold
-    #[arg(long, value_enum)]
-    fail_on: Option<FailOnLevel>,
-
-    /// Show timing telemetry: summary or full (defaults to summary when flag is present)
-    #[arg(long, value_enum, num_args = 0..=1, default_missing_value = "summary")]
-    timings: Option<TimingLevel>,
-
-    /// Only run the listed rule IDs (repeat or comma-separate)
-    #[arg(long, value_delimiter = ',', num_args = 1..)]
-    include: Vec<String>,
-
-    /// Skip the listed rule IDs (repeat or comma-separate)
-    #[arg(long, value_delimiter = ',', num_args = 1..)]
-    exclude: Vec<String>,
+    #[command(flatten)]
+    scan: ScanArgs,
 
     /// List all available rules and exit
     #[arg(long)]
@@ -143,6 +101,8 @@ struct Args {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    /// Scan an .ipa or .app bundle for App Store rejection risks
+    Scan(ScanArgs),
     /// Create or update AGENTS.md with verifyOS-cli guidance
     Init(InitArgs),
     /// Inspect IPA/app bundle size hotspots and category breakdowns
@@ -155,6 +115,8 @@ enum Commands {
     PrComment(PrCommentArgs),
     /// Start the verifyOS Language Server (LSP)
     Lsp(LspArgs),
+    /// Summarize an existing verifyOS JSON report for quick triage
+    Summary(SummaryArgs),
 }
 
 fn main() -> Result<()> {
@@ -179,22 +141,14 @@ fn main() -> Result<()> {
     if let Some(Commands::Lsp(lsp)) = args.command {
         return run_lsp_command(lsp);
     }
+    if let Some(Commands::Summary(summary)) = args.command {
+        return run_summary_command(summary);
+    }
+    if let Some(Commands::Scan(scan)) = args.command {
+        return run_scan(scan, file_config);
+    }
 
-    let runtime = resolve_runtime_config(
-        file_config,
-        CliOverrides {
-            format: args.format.map(output_format_key),
-            baseline: args.baseline.clone(),
-            md_out: args.md_out.clone(),
-            agent_pack: args.agent_pack.clone(),
-            agent_pack_format: args.agent_pack_format.map(agent_pack_format_key),
-            profile: args.profile.map(profile_key),
-            fail_on: args.fail_on.map(fail_on_key),
-            timings: args.timings.map(timing_key),
-            include: args.include.clone(),
-            exclude: args.exclude.clone(),
-        },
-    );
+    let runtime = resolve_runtime_config(file_config, scan_overrides(&args.scan));
     let output_format = parse_output_format(&runtime.format)?;
     if args.list_rules {
         render_rule_inventory(output_format)?;
@@ -208,17 +162,52 @@ fn main() -> Result<()> {
     let fail_on = parse_fail_on(&runtime.fail_on)?;
     let timing_mode = parse_timing_mode(&runtime.timings)?;
     let agent_pack_format = parse_agent_pack_format(&runtime.agent_pack_format)?;
+    run_scan_with_runtime(
+        &args.scan,
+        runtime,
+        output_format,
+        profile,
+        fail_on,
+        timing_mode,
+        agent_pack_format,
+    )
+}
+
+fn run_scan(scan: ScanArgs, file_config: FileConfig) -> Result<()> {
+    let runtime = resolve_runtime_config(file_config, scan_overrides(&scan));
+    let output_format = parse_output_format(&runtime.format)?;
+    let profile = parse_profile(&runtime.profile)?;
+    let fail_on = parse_fail_on(&runtime.fail_on)?;
+    let timing_mode = parse_timing_mode(&runtime.timings)?;
+    let agent_pack_format = parse_agent_pack_format(&runtime.agent_pack_format)?;
+    run_scan_with_runtime(
+        &scan,
+        runtime,
+        output_format,
+        profile,
+        fail_on,
+        timing_mode,
+        agent_pack_format,
+    )
+}
+
+fn run_scan_with_runtime(
+    scan: &ScanArgs,
+    runtime: verifyos_cli::config::RuntimeConfig,
+    output_format: OutputFormat,
+    profile: ScanProfile,
+    fail_on: verifyos_cli::report::FailOn,
+    timing_mode: verifyos_cli::report::TimingMode,
+    agent_pack_format: AgentPackFormat,
+) -> Result<()> {
+    let app_path = scan
+        .app
+        .as_ref()
+        .ok_or_else(|| miette::miette!("`--app <path>` is required for scans"))?;
+    let ui = ScanUi::new(scan.quiet, scan.no_progress)?;
 
     // 2. Initialize spinner
-    let pb = ProgressBar::new_spinner();
-    pb.set_style(
-        ProgressStyle::default_spinner()
-            .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
-            .template("{spinner:.green} [{elapsed_precise}] {msg}")
-            .into_diagnostic()?,
-    );
-    pb.set_message("Analyzing app bundle...");
-    pb.enable_steady_tick(std::time::Duration::from_millis(100));
+    ui.set_message("Analyzing app bundle...");
 
     // 3. Initialize Core Engine
     let mut engine = Engine::new();
@@ -226,51 +215,26 @@ fn main() -> Result<()> {
     register_rules(&mut engine, profile, &selection);
 
     // 4. Handle Xcode Project
-    let app_path = args
-        .app
-        .as_ref()
-        .expect("app is required unless list-rules");
-    let project_path = if let Some(p) = args.project {
-        Some(p)
-    } else {
-        // Auto-detect sibling .xcworkspace or .xcodeproj
-        let mut workspace = None;
-        let mut project = None;
-        if let Some(parent) = app_path.parent() {
-            if let Ok(entries) = std::fs::read_dir(parent) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if workspace.is_none()
-                        && path
-                            .extension()
-                            .is_some_and(|ext| ext.eq_ignore_ascii_case("xcworkspace"))
-                    {
-                        workspace = Some(path.clone());
-                    }
-                    if project.is_none() && path.extension().is_some_and(|ext| ext == "xcodeproj") {
-                        project = Some(path);
-                    }
-                }
-            }
-        }
-        workspace.or(project)
-    };
+    let project_path = scan
+        .project
+        .clone()
+        .or_else(|| auto_detect_project_path(app_path));
 
     if let Some(path) = project_path {
-        pb.set_message(format!("Loading Xcode project: {}...", path.display()));
+        ui.set_message(format!("Loading Xcode project: {}...", path.display()));
         if let Some(project) = load_xcode_project(&path) {
             engine.xcode_project = Some(project);
         }
     }
 
     // 5. Run the Engine
-    pb.set_message("Analyzing app bundle...");
+    ui.set_message("Analyzing app bundle...");
     let run = engine
         .run(app_path)
         .map_err(|e| miette::miette!("Engine orchestrator failed: {}", e))?;
 
     // 5. Stop the spinner
-    pb.finish_with_message("Analysis complete!");
+    ui.finish("Analysis complete!");
 
     // 6. Build report and apply baseline (if any)
     let mut report = build_report(run.results, run.total_duration_ms, run.cache_stats);
@@ -284,10 +248,12 @@ fn main() -> Result<()> {
     }
 
     // 7. Render output
-    match output_format {
-        OutputFormat::Table => println!("{}", render_table(&report, timing_mode)),
-        OutputFormat::Json => println!("{}", render_json(&report).into_diagnostic()?),
-        OutputFormat::Sarif => println!("{}", render_sarif(&report).into_diagnostic()?),
+    if !scan.quiet {
+        match output_format {
+            OutputFormat::Table => println!("{}", render_table(&report, timing_mode)),
+            OutputFormat::Json => println!("{}", render_json(&report).into_diagnostic()?),
+            OutputFormat::Sarif => println!("{}", render_sarif(&report).into_diagnostic()?),
+        }
     }
 
     if let Some(path) = runtime.md_out {
@@ -306,6 +272,79 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn scan_overrides(scan: &ScanArgs) -> CliOverrides {
+    CliOverrides {
+        format: scan.format.map(output_format_key),
+        baseline: scan.baseline.clone(),
+        md_out: scan.md_out.clone(),
+        agent_pack: scan.agent_pack.clone(),
+        agent_pack_format: scan.agent_pack_format.map(agent_pack_format_key),
+        profile: scan.profile.map(profile_key),
+        fail_on: scan.fail_on.map(fail_on_key),
+        timings: scan.timings.map(timing_key),
+        include: scan.include.clone(),
+        exclude: scan.exclude.clone(),
+    }
+}
+
+fn auto_detect_project_path(app_path: &std::path::Path) -> Option<PathBuf> {
+    let mut workspace = None;
+    let mut project = None;
+    if let Some(parent) = app_path.parent() {
+        if let Ok(entries) = std::fs::read_dir(parent) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if workspace.is_none()
+                    && path
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("xcworkspace"))
+                {
+                    workspace = Some(path.clone());
+                }
+                if project.is_none() && path.extension().is_some_and(|ext| ext == "xcodeproj") {
+                    project = Some(path);
+                }
+            }
+        }
+    }
+    workspace.or(project)
+}
+
+struct ScanUi {
+    progress: Option<ProgressBar>,
+}
+
+impl ScanUi {
+    fn new(quiet: bool, no_progress: bool) -> Result<Self> {
+        let progress = if quiet || no_progress || !stderr().is_terminal() {
+            None
+        } else {
+            let progress = ProgressBar::new_spinner();
+            progress.set_style(
+                ProgressStyle::default_spinner()
+                    .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
+                    .template("{spinner:.green} [{elapsed_precise}] {msg}")
+                    .into_diagnostic()?,
+            );
+            progress.enable_steady_tick(std::time::Duration::from_millis(100));
+            Some(progress)
+        };
+        Ok(Self { progress })
+    }
+
+    fn set_message(&self, message: impl Into<String>) {
+        if let Some(progress) = &self.progress {
+            progress.set_message(message.into());
+        }
+    }
+
+    fn finish(&self, message: &str) {
+        if let Some(progress) = &self.progress {
+            progress.finish_with_message(message.to_string());
+        }
+    }
 }
 
 fn write_agent_pack(

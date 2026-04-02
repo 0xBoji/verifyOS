@@ -110,6 +110,12 @@ Run the CLI tool against your `.ipa` or `.app` path:
 voc --app path/to/YourApp.ipa
 ```
 
+The new explicit scan form is equivalent and easier to discover in help output:
+
+```bash
+voc scan --app path/to/YourApp.ipa
+```
+
 Include a project file for deeper analysis:
 
 ```bash
@@ -154,6 +160,20 @@ voc --app path/to/YourApp.ipa --fail-on warning
 
 `error` is the default if `--fail-on` is omitted.
 
+### Quiet and automation-friendly scans
+
+Disable the spinner for non-interactive environments:
+
+```bash
+voc scan --app path/to/YourApp.ipa --no-progress
+```
+
+Suppress the primary stdout report while still writing artifacts and enforcing exit codes:
+
+```bash
+voc scan --app path/to/YourApp.ipa --quiet --md-out report.md --agent-pack .verifyos-agent
+```
+
 ### Rule selectors
 
 Run only specific rules or exclude noisy ones by rule ID:
@@ -187,6 +207,20 @@ Inspect one rule in detail:
 ```bash
 voc --show-rule RULE_PRIVATE_API
 voc --show-rule RULE_PRIVATE_API --format json
+```
+
+### Report summary
+
+Summarize an existing JSON report for quick triage:
+
+```bash
+voc summary --report report.json
+```
+
+Machine-readable summary:
+
+```bash
+voc summary --report report.json --format json
 ```
 
 ### Config file
@@ -669,7 +703,7 @@ Analysis complete!
 
 `verifyOS-cli` is organized as a layered scanner plus an AI-agent handoff system:
 
-- **`src/main.rs`**: CLI entrypoint, subcommands (`scan`, `init`, `doctor`, `handoff`, `pr-comment`, `analyze-size`, `lsp`), output routing, and exit policy.
+- **`src/main.rs`**: CLI entrypoint, legacy root scan compatibility, subcommands (`scan`, `summary`, `init`, `doctor`, `handoff`, `pr-comment`, `analyze-size`, `lsp`), output routing, and exit policy.
 - **`src/core/`**: Scan orchestration, rule execution timing, and artifact-context lifecycle.
 - **`src/parsers/`**: Low-level readers for `.ipa`, `.app`, `Info.plist`, provisioning profiles, Mach-O usage/signing/SDK scans, and related bundle metadata.
 - **`src/rules/`**: Trait-based App Store review rules grouped by concern such as privacy, entitlements, signing, ATS, metadata, and bundling.
